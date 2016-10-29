@@ -238,8 +238,3 @@ Update `peer` attributes.
 Returns true on success, or false and a string describing an error otherwise.
 
 [Back to TOC](#table-of-contents)
-
-If you indeed have spawned a healthchecker in `init_worker_by_lua*`, then you should really
-check out the NGINX error log file to see if there is any fatal errors aborting the healthchecker threads.
-
-[Back to TOC](#table-of-contents)
