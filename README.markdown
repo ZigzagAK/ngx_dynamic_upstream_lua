@@ -181,7 +181,7 @@ Returns true and lua table on success, or false and a string describing an error
 
 set_peer_down
 -------------
-**syntax:** `ok, nil, error = dynamic_upstream.set_peer_down(upstream, peer)`
+**syntax:** `ok, _, error = dynamic_upstream.set_peer_down(upstream, peer)`
 
 **context:** *&#42;_by_lua&#42;*
 
@@ -192,7 +192,7 @@ Returns true on success, or false and a string describing an error otherwise.
 
 set_peer_up
 -------------
-**syntax:** `ok, nil, error = dynamic_upstream.set_peer_up(upstream, peer)`
+**syntax:** `ok, _, error = dynamic_upstream.set_peer_up(upstream, peer)`
 
 **context:** *&#42;_by_lua&#42;*
 
@@ -203,7 +203,7 @@ Returns true on success, or false and a string describing an error otherwise.
 
 add_peer
 -------------
-**syntax:** `ok, nil, error = dynamic_upstream.add_peer(upstream, peer)`
+**syntax:** `ok, _, error = dynamic_upstream.add_peer(upstream, peer)`
 
 **context:** *&#42;_by_lua&#42;*
 
@@ -213,7 +213,7 @@ Returns true on success, or false and a string describing an error otherwise.
 
 remove_peer
 -------------
-**syntax:** `ok, nil, error = dynamic_upstream.remove_peer(upstream, peer)`
+**syntax:** `ok, _, error = dynamic_upstream.remove_peer(upstream, peer)`
 
 **context:** *&#42;_by_lua&#42;*
 
@@ -224,7 +224,7 @@ Returns true on success, or false and a string describing an error otherwise.
 
 update_peer
 -------------
-**syntax:** `ok, nil, error = dynamic_upstream.update_peer(upstream, peer, {
+**syntax:** `ok, _, error = dynamic_upstream.update_peer(upstream, peer, {
               weight = N,
               max_fails = N,
               fail_timeout = N (seconds),
