@@ -226,8 +226,6 @@ ngx_http_dynamic_upstream_lua_op(lua_State * L, ngx_dynamic_upstream_op_t *op)
         return ngx_http_dynamic_upstream_lua_error(L, "Internal server error");
     }
 
-    ngx_shmtx_unlock(&shpool->mutex);
-
     lua_pushboolean(L, 1);
 
     if (op->verbose) {
@@ -235,6 +233,8 @@ ngx_http_dynamic_upstream_lua_op(lua_State * L, ngx_dynamic_upstream_op_t *op)
     } else {
         lua_pushnil(L);
     }
+
+    ngx_shmtx_unlock(&shpool->mutex);
 
     lua_pushnil(L);
 
