@@ -13,9 +13,13 @@ Table of Contents
 * [Methods](#methods)
     * [get_upstreams](#get_upstreams)
     * [get_servers](#get_servers)
+    * [get_primary_peers](#get_primary_peers)
+    * [get_backup_peers](#get_backup_peers)
     * [set_peer_down](#set_peer_down)
     * [set_peer_up](#set_peer_up)
-    * [add_peer](#add_peer)
+    * [add_peer (deprecated)](#add_peer)
+    * [add_primary_peer](#add_primary_peer)
+    * [add_backup_peer](#add_backup_peer)
     * [remove_peer](#remove_peer)
     * [update_peer](#update_peer)
 
@@ -23,7 +27,7 @@ Dependencies
 ============
 
 This module has several dependencies:
-* [dynamic-upstream-module](https://github.com/cubicdaiya/ngx_dynamic_upstream)
+* [dynamic-upstream-module](https://github.com/ZigzagAK/ngx_dynamic_upstream)
 
 Status
 ======
@@ -77,7 +81,7 @@ http {
             local peer = ngx.var.arg_peer
             local upstream = ngx.var.upstream
             
-            local result, _, err = dynamic_upstream.add_peer(upstream, peer)
+            local result, _, err = dynamic_upstream.add_primary_peer(upstream, peer)
             if not result then
               say("Failed to add peer " .. peer .. ": ", err)
               return
@@ -137,7 +141,7 @@ http {
                     if server.down ~= nil then
                       status = "down"
                     end
-                    ngx.say("    server " .. server.name .. " weight=" .. server.weight .. " max_fails=" .. server.max_fails .. " fail_timeout=" .. server.fail_timeout .. " status=" .. status)
+                    ngx.say("    server " .. server.name .. " backup=" .. server.backup .. " weight=" .. server.weight .. " max_fails=" .. server.max_fails .. " fail_timeout=" .. server.fail_timeout .. " status=" .. status)
                   end
                 else
                   ngx.say(error)
@@ -179,6 +183,28 @@ Get table of servers in the `upstream`.
 Returns true and lua table on success, or false and a string describing an error otherwise.
 
 
+get_primary_peers
+-------------
+**syntax:** `ok, peers, error = dynamic_upstream.get_primary_peers(upstream)`
+
+**context:** *&#42;_by_lua&#42;*
+
+Get table of primary peers in the `upstream`.
+
+Returns true and lua table on success, or false and a string describing an error otherwise.
+
+
+get_backup_peers
+-------------
+**syntax:** `ok, peers, error = dynamic_upstream.get_backup_peers(upstream)`
+
+**context:** *&#42;_by_lua&#42;*
+
+Get table of backup peers in the `upstream`.
+
+Returns true and lua table on success, or false and a string describing an error otherwise.
+
+
 set_peer_down
 -------------
 **syntax:** `ok, _, error = dynamic_upstream.set_peer_down(upstream, peer)`
@@ -201,7 +227,7 @@ Go `peer` of the `upstream` to UP state.
 Returns true on success, or false and a string describing an error otherwise.
 
 
-add_peer
+add_peer (deprecated, use add_xxx_peer)
 -------------
 **syntax:** `ok, _, error = dynamic_upstream.add_peer(upstream, peer)`
 
@@ -210,6 +236,29 @@ add_peer
 Add `peer` to the `upstream`.
 
 Returns true on success, or false and a string describing an error otherwise.
+
+
+add_primary_peer
+-------------
+**syntax:** `ok, _, error = dynamic_upstream.add_primary_peer(upstream, peer)`
+
+**context:** *&#42;_by_lua&#42;*
+
+Add `peer` to the `upstream` as primary.
+
+Returns true on success, or false and a string describing an error otherwise.
+
+
+add_backup_peer
+-------------
+**syntax:** `ok, _, error = dynamic_upstream.add_backup_peer(upstream, peer)`
+
+**context:** *&#42;_by_lua&#42;*
+
+Add `peer` to the `upstream` as backup.
+
+Returns true on success, or false and a string describing an error otherwise.
+
 
 remove_peer
 -------------
