@@ -12,12 +12,11 @@ Table of Contents
 * [Description](#description)
 * [Methods](#methods)
     * [get_upstreams](#get_upstreams)
-    * [get_servers](#get_servers)
+    * [get_peers](#get_peers)
     * [get_primary_peers](#get_primary_peers)
     * [get_backup_peers](#get_backup_peers)
     * [set_peer_down](#set_peer_down)
     * [set_peer_up](#set_peer_up)
-    * [add_peer (deprecated)](#add_peer)
     * [add_primary_peer](#add_primary_peer)
     * [add_backup_peer](#add_backup_peer)
     * [remove_peer](#remove_peer)
@@ -133,7 +132,7 @@ http {
               for _, upstream in pairs(upstreams)
               do
                 ngx.say(upstream)
-                local ok, servers, error = dynamic_upstream.get_servers(upstream)
+                local ok, servers, error = dynamic_upstream.get_peers(upstream)
                 if ok then
                   for _, server in pairs(servers)
                   do
@@ -172,9 +171,9 @@ Get table of upstreams.
 Returns true and lua table on success, or false and a string describing an error otherwise.
 
 
-get_servers
+get_peers
 -------------
-**syntax:** `ok, servers, error = dynamic_upstream.get_servers(upstream)`
+**syntax:** `ok, servers, error = dynamic_upstream.get_peers(upstream)`
 
 **context:** *&#42;_by_lua&#42;*
 
@@ -223,17 +222,6 @@ set_peer_up
 **context:** *&#42;_by_lua&#42;*
 
 Go `peer` of the `upstream` to UP state.
-
-Returns true on success, or false and a string describing an error otherwise.
-
-
-add_peer (deprecated, use add_xxx_peer)
--------------
-**syntax:** `ok, _, error = dynamic_upstream.add_peer(upstream, peer)`
-
-**context:** *&#42;_by_lua&#42;*
-
-Add `peer` to the `upstream`.
 
 Returns true on success, or false and a string describing an error otherwise.
 

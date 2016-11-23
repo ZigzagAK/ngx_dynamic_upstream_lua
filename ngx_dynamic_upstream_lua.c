@@ -14,12 +14,11 @@ static ngx_int_t ngx_http_dynamic_upstream_lua_init(ngx_conf_t *cf);
 static int ngx_http_dynamic_upstream_lua_create_module(lua_State * L);
 
 static int ngx_http_dynamic_upstream_lua_get_upstreams(lua_State * L);
-static int ngx_http_dynamic_upstream_lua_get_servers(lua_State * L);
+static int ngx_http_dynamic_upstream_lua_get_peers(lua_State * L);
 static int ngx_http_dynamic_upstream_lua_get_primary_peers(lua_State * L);
 static int ngx_http_dynamic_upstream_lua_get_backup_peers(lua_State * L);
 static int ngx_http_dynamic_upstream_lua_set_peer_down(lua_State * L);
 static int ngx_http_dynamic_upstream_lua_set_peer_up(lua_State * L);
-static int ngx_http_dynamic_upstream_lua_add_peer(lua_State * L);
 static int ngx_http_dynamic_upstream_lua_add_primary_peer(lua_State * L);
 static int ngx_http_dynamic_upstream_lua_add_backup_peer(lua_State * L);
 static int ngx_http_dynamic_upstream_lua_remove_peer(lua_State * L);
@@ -71,13 +70,13 @@ ngx_http_dynamic_upstream_lua_init(ngx_conf_t *cf)
 static int
 ngx_http_dynamic_upstream_lua_create_module(lua_State * L)
 {
-    lua_createtable(L, 0, 11);
+    lua_createtable(L, 0, 10);
 
     lua_pushcfunction(L, ngx_http_dynamic_upstream_lua_get_upstreams);
     lua_setfield(L, -2, "get_upstreams");
 
-    lua_pushcfunction(L, ngx_http_dynamic_upstream_lua_get_servers);
-    lua_setfield(L, -2, "get_servers");
+    lua_pushcfunction(L, ngx_http_dynamic_upstream_lua_get_peers);
+    lua_setfield(L, -2, "get_peers");
 
     lua_pushcfunction(L, ngx_http_dynamic_upstream_lua_get_primary_peers);
     lua_setfield(L, -2, "get_primary_peers");
@@ -90,9 +89,6 @@ ngx_http_dynamic_upstream_lua_create_module(lua_State * L)
 
     lua_pushcfunction(L, ngx_http_dynamic_upstream_lua_set_peer_up);
     lua_setfield(L, -2, "set_peer_up");
-
-    lua_pushcfunction(L, ngx_http_dynamic_upstream_lua_add_peer);
-    lua_setfield(L, -2, "add_peer");
 
     lua_pushcfunction(L, ngx_http_dynamic_upstream_lua_add_primary_peer);
     lua_setfield(L, -2, "add_primary_peer");
@@ -320,7 +316,7 @@ ngx_http_dynamic_upstream_lua_get_upstreams(lua_State * L)
 }
 
 static int
-ngx_http_dynamic_upstream_lua_get_servers(lua_State * L)
+ngx_http_dynamic_upstream_lua_get_peers(lua_State * L)
 {
     ngx_dynamic_upstream_op_t op;
     if (lua_gettop(L) != 1) {
@@ -415,12 +411,6 @@ static int
 ngx_http_dynamic_upstream_lua_add_primary_peer(lua_State * L)
 {
     return ngx_http_dynamic_upstream_lua_add_peer_impl(L, 0);
-}
-
-static int
-ngx_http_dynamic_upstream_lua_add_peer(lua_State * L)
-{
-    return ngx_http_dynamic_upstream_lua_add_primary_peer(L);
 }
 
 static int
