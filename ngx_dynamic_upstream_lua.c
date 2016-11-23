@@ -251,11 +251,8 @@ ngx_http_dynamic_upstream_lua_op(lua_State * L, ngx_dynamic_upstream_op_t *op, i
 
     shpool = (ngx_slab_pool_t *) uscf->shm_zone->shm.addr;
 
-    ngx_shmtx_lock(&shpool->mutex);
-
     rc = ngx_dynamic_upstream_op(ngx_http_lua_get_request(L), op, shpool, uscf);
     if (rc != NGX_OK) {
-        ngx_shmtx_unlock(&shpool->mutex);
         return ngx_http_dynamic_upstream_lua_error(L, "Internal server error");
     }
 
@@ -267,8 +264,6 @@ ngx_http_dynamic_upstream_lua_op(lua_State * L, ngx_dynamic_upstream_op_t *op, i
     } else {
         lua_pushnil(L);
     }
-
-    ngx_shmtx_unlock(&shpool->mutex);
 
     lua_pushnil(L);
 
