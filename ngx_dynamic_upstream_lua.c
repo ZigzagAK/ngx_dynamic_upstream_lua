@@ -247,7 +247,7 @@ ngx_http_dynamic_upstream_lua_op(lua_State * L, ngx_dynamic_upstream_op_t *op, i
         return ngx_http_dynamic_upstream_lua_error(L, "Upstream not found");
     }
 
-    rc = ngx_dynamic_upstream_op(ngx_http_lua_get_request(L)->connection->log, op, (ngx_slab_pool_t *) uscf->shm_zone->shm.addr, uscf);
+    rc = ngx_dynamic_upstream_op(ngx_http_lua_get_request(L)->connection->log, op, uscf);
     if (rc != NGX_OK) {
         return ngx_http_dynamic_upstream_lua_error(L, "Internal server error");
     }
