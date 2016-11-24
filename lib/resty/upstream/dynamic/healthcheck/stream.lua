@@ -27,12 +27,12 @@ end
 --- Wrappers -----------------------------------------------------------------------
 
 function _M.set_peer_down(u, peer)
-    local ok, err = upstream.set_peer_down(u, peer.is_backup, peer.id, true)
+    local ok, err = upstream.set_peer_down(u, peer.backup, peer.id, true)
     return ok, nil, err
 end
 
 function _M.set_peer_up(u, peer)
-    local ok, err = upstream.set_peer_down(u, peer.is_backup, peer.id, false)
+    local ok, err = upstream.set_peer_down(u, peer.backup, peer.id, false)
     return ok, nil, err
 end
 
@@ -45,7 +45,7 @@ function _M.get_peers(u)
     if pp then
         for _, peer in pairs(pp)
         do
-            peer.is_backup = false
+            peer.backup = false
             table.insert(peers, peer)
         end
     end
@@ -53,7 +53,7 @@ function _M.get_peers(u)
     if bp then
         for _, peer in pairs(bp)
         do
-            peer.is_backup = true
+            peer.backup = true
             table.insert(peers, peer)
         end
     end

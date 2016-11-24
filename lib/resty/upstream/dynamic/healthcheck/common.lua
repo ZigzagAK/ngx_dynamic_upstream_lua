@@ -216,10 +216,11 @@ end
 local function preprocess_peers(peers, upstream)
     for _, peer in pairs(peers)
     do
+        peer.upstream = upstream
         if peer.name then
             local from, to, err = ngx.re.find(peer.name, [[^(.*):\d+$]], "jo", nil, 1)
             if from then
-                peer.upstream = upstream
+
                 peer.host = peer.name:sub(1, to)
                 peer.port = tonumber(peer.name:sub(to + 2))
             end
