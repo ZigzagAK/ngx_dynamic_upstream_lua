@@ -5,10 +5,9 @@
 
 #include "../ngx_dynamic_upstream/src/ngx_dynamic_upstream_module.h"
 
-extern ngx_int_t ngx_dynamic_upstream_op(ngx_http_request_t *r, ngx_dynamic_upstream_op_t *op,
-                                         ngx_slab_pool_t *shpool, ngx_http_upstream_srv_conf_t *uscf);
 
 ngx_module_t ngx_http_dynamic_upstream_lua_module;
+
 
 static ngx_int_t ngx_http_dynamic_upstream_lua_init(ngx_conf_t *cf);
 static int ngx_http_dynamic_upstream_lua_create_module(lua_State * L);
@@ -241,7 +240,6 @@ ngx_http_dynamic_upstream_lua_op(lua_State * L, ngx_dynamic_upstream_op_t *op, i
 {
     ngx_int_t                       rc;
     ngx_http_upstream_srv_conf_t   *uscf;
-    ngx_slab_pool_t                *shpool;
     ngx_http_upstream_rr_peers_t   *primary;
 
     uscf = ngx_dynamic_upstream_get_zone(L, op);
@@ -249,9 +247,7 @@ ngx_http_dynamic_upstream_lua_op(lua_State * L, ngx_dynamic_upstream_op_t *op, i
         return ngx_http_dynamic_upstream_lua_error(L, "Upstream not found");
     }
 
-    shpool = (ngx_slab_pool_t *) uscf->shm_zone->shm.addr;
-
-    rc = ngx_dynamic_upstream_op(ngx_http_lua_get_request(L), op, shpool, uscf);
+    rc = ngx_dynamic_upstream_op(ngx_http_lua_get_request(L)->connection->log, op, (ngx_slab_pool_t *) uscf->shm_zone->shm.addr, uscf);
     if (rc != NGX_OK) {
         return ngx_http_dynamic_upstream_lua_error(L, "Internal server error");
     }
