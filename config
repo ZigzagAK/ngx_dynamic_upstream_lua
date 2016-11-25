@@ -1,5 +1,5 @@
 ngx_addon_name=ngx_http_dynamic_upstream_lua_module
-HTTP_LUA_UPSTREAM_SRCS="$ngx_addon_dir/ngx_dynamic_upstream_lua.c"
+HTTP_LUA_UPSTREAM_SRCS="$ngx_addon_dir/ngx_dynamic_upstream_lua.c $ngx_addon_dir/ngx_dynamic_upstream_stream_lua.c"
 
 if test -n "$ngx_module_link"; then
     ngx_module_type=HTTP
