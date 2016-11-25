@@ -277,6 +277,7 @@ update_peer
               weight = N,
               max_fails = N,
               fail_timeout = N (seconds),
+              max_conns = N,
               down = 0/1
             })`
 
