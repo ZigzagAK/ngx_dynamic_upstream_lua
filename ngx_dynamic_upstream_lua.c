@@ -184,7 +184,7 @@ ngx_dynamic_upstream_lua_create_response(ngx_http_upstream_rr_peers_t *primary, 
     for (peers = primary; peers; peers = peers->next) {
         if ( (flags & PRIMARY && peers == primary) || (flags & BACKUP && peers == backup) ) {
             for (peer = peers->peer; peer; peer = peer->next, ++i) {
-                n = 5;
+                n = 7;
 
                 if (peer->down) {
                     n++;
@@ -199,6 +199,14 @@ ngx_dynamic_upstream_lua_create_response(ngx_http_upstream_rr_peers_t *primary, 
 
                 lua_pushliteral(L, "weight");
                 lua_pushinteger(L, (lua_Integer) peer->weight);
+                lua_rawset(L, -3);
+
+                lua_pushliteral(L, "max_conns");
+                lua_pushinteger(L, (lua_Integer) peer->max_conns);
+                lua_rawset(L, -3);
+
+                lua_pushliteral(L, "conns");
+                lua_pushinteger(L, (lua_Integer) peer->conns);
                 lua_rawset(L, -3);
 
                 lua_pushliteral(L, "max_fails");
