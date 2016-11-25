@@ -3,6 +3,8 @@ Name
 
 dynamic-upstream-module-lua - Lua bindings for dynamic-upstream-module
 
+This module supports http and stream upstream types.
+
 Table of Contents
 =================
 
@@ -10,6 +12,7 @@ Table of Contents
 * [Status](#status)
 * [Synopsis](#synopsis)
 * [Description](#description)
+* [Packages](#packages)
 * [Methods](#methods)
     * [get_upstreams](#get_upstreams)
     * [get_peers](#get_peers)
@@ -31,7 +34,7 @@ This module has several dependencies:
 Status
 ======
 
-This library is still under early development but is already production ready.
+This library is production ready.
 
 Description
 ===========
@@ -156,6 +159,15 @@ http {
 }
 ```
 [Back to TOC](#table-of-contents)
+
+Packages
+=======
+
+Package `ngx.dynamic_upstream` is used for manipulation http upstreams.
+Package `ngx.dynamic_upstream.stream` is used for manipulation stream upstreams.
+
+Functionality of both packages are same.
+
 
 Methods
 =======
