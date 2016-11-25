@@ -441,6 +441,9 @@ ngx_stream_dynamic_upstream_lua_update_peer_parse_params(lua_State * L, ngx_dyna
         } else if (strcmp(key, "max_fails") == 0) {
             op->max_fails = lua_tonumber(L, -2);
             op->op_param |= NGX_DYNAMIC_UPSTEAM_OP_PARAM_MAX_FAILS;
+        } else if (strcmp(key, "max_conns") == 0) {
+            op->max_conns = lua_tonumber(L, -2);
+            op->op_param |= NGX_DYNAMIC_UPSTEAM_OP_PARAM_MAX_CONNS;
         } else if (strcmp(key, "fail_timeout") == 0) {
             op->fail_timeout = lua_tonumber(L, -2);
             op->op_param |= NGX_DYNAMIC_UPSTEAM_OP_PARAM_FAIL_TIMEOUT;
