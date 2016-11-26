@@ -5,3 +5,5 @@ do
   echo "Tests : "$t
   prove $t
 done
+
+rm -rf t/servroot
