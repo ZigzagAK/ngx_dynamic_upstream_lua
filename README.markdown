@@ -24,6 +24,7 @@ Table of Contents
     * [add_backup_peer](#add_backup_peer)
     * [remove_peer](#remove_peer)
     * [update_peer](#update_peer)
+* [Latest build](#latest-build)
 
 Dependencies
 ============
@@ -48,114 +49,136 @@ Synopsis
 
 ```nginx
 http {
-    lua_package_path "/path/to/lua-ngx-dynamic-upstream-lua/lib/?.lua;;";
+  lua_package_path "/path/to/lua-ngx-dynamic-upstream-lua/lib/?.lua;;";
 
-    upstream backend {
-        zone backend 1m;
-        server 127.0.0.1:9090;
+  upstream backend {
+    zone backend 1m;
+    server 127.0.0.1:9090;
+  }
+
+  server {
+    listen 8888;
+
+    default_type text/plain;
+
+    # curl "http://localhost:8888/backend/add?peer=127.0.0.1:9091&primary=1&weight=1&max_fails=2&fail_timeout=30&max_conns=100"
+    # curl "http://localhost:8888/backend/add?peer=127.0.0.1:9092&backup=1&weight=1&max_fails=2&fail_timeout=30&max_conns=100"
+    location ~* ^/(.+)/add {
+      set $upstream $1;
+      content_by_lua_block {
+        local upstream = require "ngx.dynamic_upstream"
+
+        local peer = ngx.var.arg_peer
+        local u = ngx.var.upstream
+
+        local ok, err
+        if ngx.var.arg_backup and ngx.var.arg_backup == 1 then
+          ok, _, err = upstream.add_primary_peer(u, peer)
+        else
+          ok, _, err = upstream.add_backup_peer(u, peer)
+        end
+
+        if not ok then
+          say("Failed to add peer " .. peer .. ": ", err)
+          return
+        end
+
+        local peer_args = {
+          weight       = ngx.var.arg_weight or 1,
+          max_fails    = ngx.var.arg_max_fails or 2,
+          fail_timeout = ngx.var.arg_fail_timeout or 5,
+          max_conns    = ngx.var.arg_max_conns or 1,
+          down         = 1
+        }
+
+        ok, _, err = upstream.update_peer(u, peer, peer_args)
+        if not ok then
+          ngx.say("Failed to update peer " .. peer .. " params, error: ", err)
+          return
+        end
+
+        ngx.say("Added " .. peer .. " to " .. u .. " upstream")
+      }
     }
 
-    lua_socket_log_errors off;
+    # remove peer
+    # curl "http://localhost:8888/backend/remove?peer=127.0.0.1:9091"
+    location ~* ^/(.+)/remove {
+      set $upstream $1;
+      content_by_lua_block {
+        local upstream = require "ngx.dynamic_upstream"
 
-    server {
-        listen 9090;
-        listen 9091;
-        
-        default_type text/plain;
-        
-        location / {
-          return 200 'Hello world!';
-        }
+        local peer = ngx.var.arg_peer
+        local u = ngx.var.upstream
+
+        local ok, _, err = upstream.remove_peer(u, peer)
+        if not ok then
+          ngx.say("Failed to remove peer " .. peer .. ": ", err)
+          return
+        end
+
+        ngx.say("Removed " .. peer .. " from " .. u .. " upstream")
+      }
     }
-    
-    server {
-        listen 8888;
 
-        default_type text/plain;
+    # status page for all the peers:
+    location = /status {
+      content_by_lua_block {
+        local upstream = require "ngx.dynamic_upstream"
 
-        # add peer
-        # curl "http://localhost:8888/backend/add?peer=127.0.0.1:9091"
-        location ~* ^/(.+)/add {
-          set $upstream $1;
-          content_by_lua_block {
-            local dynamic_upstream = require "ngx.dynamic_upstream"
+        local ok, upstreams, err = upstream.get_upstreams()
+        if not ok then
+          ngx.say(err)
+          ngx.exit(200)
+        end
 
-            local peer = ngx.var.arg_peer
-            local upstream = ngx.var.upstream
-            
-            local result, _, err = dynamic_upstream.add_primary_peer(upstream, peer)
-            if not result then
-              say("Failed to add peer " .. peer .. ": ", err)
-              return
-            end
-            
-            local peer_args = {
-              weight = 1,
-              max_fails = 2,
-              fail_timeout = 30,
-              down = 1
-            }
-            
-            result, _, err = dynamic_upstream.update_peer(upstream, peer, peer_args)
-            if not result then
-             ngx.say("Failed to update peer " .. peer .. " params, error: ", err)
-             return
-            end
-            
-            ngx.say("Added " .. peer .. " to " .. upstream .. " upstream")
-          }
-        }
+        local get_peers = function(u)
+          local ok, peers, err = upstream.get_primary_peers(u)
+          if not ok then
+            ngx.say(err)
+            ngx.exit(200)
+          end
+  
+          local t = {}
 
-        # remove peer
-        # curl "http://localhost:8888/backend/remove?peer=127.0.0.1:9091"
-        location ~* ^/(.+)/remove {
-          set $upstream $1;
-          content_by_lua_block {
-            local dynamic_upstream = require "ngx.dynamic_upstream"
+          for _, peer in pairs(peers)
+          do
+            table.insert(t, peer)
+          end
 
-            local peer = ngx.var.arg_peer
-            local upstream = ngx.var.upstream
-            
-            local result, _, err = dynamic_upstream.remove_peer(upstream, peer)
-            if not result then
-              say("Failed to remove peer " .. peer .. ": ", err)
-              return
+          ok, peers, err = upstream.get_backup_peers(u)
+          if not ok then
+            ngx.say(err)
+            ngx.exit(200)
+          end
+  
+          for _, peer in pairs(peers)
+          do
+            table.insert(t, peer)
+          end
+
+          return t
+        end
+
+        local tointeger = function (b) if b then return 1 else return 0 end end
+
+        for _, u in pairs(upstreams)
+        do
+          ngx.say(u)
+
+          for _, peer in pairs(get_peers(u))
+          do
+            local status = "up"
+            if peer.down ~= nil then
+              status = "down"
             end
 
-            ngx.say("Removed " .. peer .. " from " .. upstream .. " upstream")
-          }
-        }
-        
-        # status page for all the peers:
-        location = /status {
-          content_by_lua_block {
-            local dynamic_upstream = require "ngx.dynamic_upstream"
-            local ok, upstreams, error = dynamic_upstream.get_upstreams()
-            if ok then
-              for _, upstream in pairs(upstreams)
-              do
-                ngx.say(upstream)
-                local ok, servers, error = dynamic_upstream.get_peers(upstream)
-                if ok then
-                  for _, server in pairs(servers)
-                  do
-                    local status = "up"
-                    if server.down ~= nil then
-                      status = "down"
-                    end
-                    ngx.say("    server " .. server.name .. " backup=" .. server.backup .. " weight=" .. server.weight .. " max_fails=" .. server.max_fails .. " fail_timeout=" .. server.fail_timeout .. " status=" .. status)
-                  end
-                else
-                  ngx.say(error)
-                end
-                ngx.say()
-              end
-            else
-              ngx.say(error)
-            end
-          }
-        }
+            ngx.say("    server " .. peer.name .. " backup=" .. tointeger(peer.backup) .. " weight=" .. peer.weight .. " max_conns=" .. peer.max_conns .. " max_fails=" .. peer.max_fails .. " fail_timeout=" .. peer.fail_timeout .. " status=" .. status)
+          end
+        end
+      }
     }
+  }
 }
 ```
 [Back to TOC](#table-of-contents)
@@ -288,3 +311,6 @@ Update `peer` attributes.
 Returns true on success, or false and a string describing an error otherwise.
 
 [Back to TOC](#table-of-contents)
+
+# Latest build
+  * https://drone.io/github.com/ZigzagAK/ngx_dynamic_upstream_lua/files
