@@ -5,6 +5,8 @@ dynamic-upstream-module-lua - Lua bindings for dynamic-upstream-module
 
 This module supports http and stream upstream types.
 
+[![Build Status](https://drone.io/github.com/ZigzagAK/ngx_dynamic_upstream_lua/status.png)](https://drone.io/github.com/ZigzagAK/ngx_dynamic_upstream_lua/latest)
+
 Table of Contents
 =================
 
