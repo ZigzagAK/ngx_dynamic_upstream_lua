@@ -63,7 +63,7 @@ http {
 
     default_type text/plain;
 
-    # curl "http://localhost:8888/backend/add?peer=127.0.0.1:9091&primary=1&weight=1&max_fails=2&fail_timeout=30&max_conns=100"
+    # curl "http://localhost:8888/backend/add?peer=127.0.0.1:9091&weight=1&max_fails=2&fail_timeout=30&max_conns=100"
     # curl "http://localhost:8888/backend/add?peer=127.0.0.1:9092&backup=1&weight=1&max_fails=2&fail_timeout=30&max_conns=100"
     location ~* ^/(.+)/add {
       set $upstream $1;
@@ -75,9 +75,9 @@ http {
 
         local ok, err
         if ngx.var.arg_backup and ngx.var.arg_backup == 1 then
-          ok, _, err = upstream.add_primary_peer(u, peer)
-        else
           ok, _, err = upstream.add_backup_peer(u, peer)
+        else
+          ok, _, err = upstream.add_primary_peer(u, peer)
         end
 
         if not ok then
