@@ -142,7 +142,7 @@ function download_nginx() {
 }
 
 function download_luajit() {
-  echo "Download LuaJIT"
+  echo "Download LuaJIT-$LUAJIT_VERSION"
   curl -s -L -O http://luajit.org/download/LuaJIT-$LUAJIT_VERSION.tar.gz
   tar zxf LuaJIT-$LUAJIT_VERSION.tar.gz -C ../build
 }
