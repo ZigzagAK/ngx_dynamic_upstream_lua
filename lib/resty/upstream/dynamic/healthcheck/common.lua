@@ -275,6 +275,20 @@ check = function (premature, ctx)
     end
 end
 
+local function init_down_state(ctx)
+  for _, u in pairs(ctx.upstreams)
+  do
+    local ok, peers, err = ctx.get_peers(u)
+    if not ok then
+      error(err)
+    end
+    for _, peer in ipairs(peers)
+    do
+      ctx.set_peer_down(u, peer)
+    end
+  end
+end
+
 local function spawn_checker(self)
     local opts = self.opts
 
@@ -366,6 +380,12 @@ local function spawn_checker(self)
     if not ctx.mutex then
         return nil, "failed to create timer: " .. err
     end
+
+    if not ctx.dict.started then
+      init_down_state(ctx)
+    end
+
+    ctx.dict.started = true
 
     local ok, err = ngx.timer.at(0, check, ctx)
     if not ok then
