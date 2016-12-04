@@ -3,7 +3,10 @@
 # Copyright, Aleksey Konovkin (alkon2000@mail.ru)
 # BSD license type
 
-download=1
+download=0
+if [ "$1" == "1" ]; then
+  download=1
+fi
 build_deps=1
 build_debug=1
 build_release=1
@@ -76,7 +79,7 @@ function build_debug() {
                 --add-module=../ngx_devel_kit \
                 --add-module=../lua-nginx-module \
                 --add-module=../ngx_dynamic_upstream \
-                --add-module=../ngx_dynamic_upstream_lua > /dev/null
+                --add-module=../../../ngx_dynamic_upstream_lua > /dev/null
   fi
 
   r=$?
@@ -108,7 +111,7 @@ function build_release() {
               --add-module=../ngx_devel_kit \
               --add-module=../lua-nginx-module \
               --add-module=../ngx_dynamic_upstream \
-              --add-module=../ngx_dynamic_upstream_lua > /dev/null
+              --add-module=../../../ngx_dynamic_upstream_lua > /dev/null
 
   r=$?
   if [ $r -ne 0 ]; then
@@ -175,7 +178,6 @@ function download() {
   download_module simpl       ngx_devel_kit                    master
   download_module openresty   lua-nginx-module                 master
   download_module ZigzagAK    ngx_dynamic_upstream             master
-  download_module ZigzagAK    ngx_dynamic_upstream_lua         master
 
   cd ..
 }
@@ -256,7 +258,7 @@ function install_lua_modules() {
 
   cd ../..
 
-  install_file lua  .
+  install_file lib  .
   install_file conf .
 }
 

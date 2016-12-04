@@ -89,7 +89,7 @@ ngx_stream_lua_upstream_get_upstream_main_conf()
 
 
 static ngx_stream_upstream_srv_conf_t *
-ngx_dynamic_upstream_get_zone(lua_State * L, ngx_dynamic_upstream_op_t *op)
+ngx_dynamic_upstream_get(lua_State * L, ngx_dynamic_upstream_op_t *op)
 {
     ngx_uint_t                       i;
     ngx_stream_upstream_srv_conf_t   *uscf, **uscfp;
@@ -103,9 +103,7 @@ ngx_dynamic_upstream_get_zone(lua_State * L, ngx_dynamic_upstream_op_t *op)
 
     for (i = 0; i < umcf->upstreams.nelts; i++) {
         uscf = uscfp[i];
-        if (uscf->shm_zone != NULL &&
-            uscf->shm_zone->shm.name.len == op->upstream.len &&
-            ngx_strncmp(uscf->shm_zone->shm.name.data, op->upstream.data, op->upstream.len) == 0)
+        if (ngx_strncmp(uscf->host.data, op->upstream.data, op->upstream.len) == 0)
         {
             return uscf;
         }
@@ -228,9 +226,15 @@ ngx_stream_dynamic_upstream_lua_op(lua_State * L, ngx_dynamic_upstream_op_t *op,
     ngx_stream_upstream_srv_conf_t *uscf;
     ngx_stream_upstream_rr_peers_t *primary;
 
-    uscf = ngx_dynamic_upstream_get_zone(L, op);
+    uscf = ngx_dynamic_upstream_get(L, op);
     if (uscf == NULL) {
         return ngx_stream_dynamic_upstream_lua_error(L, "Upstream not found");
+    }
+
+    if (op->op & (NGX_DYNAMIC_UPSTEAM_OP_ADD | NGX_DYNAMIC_UPSTEAM_OP_REMOVE)) {
+        if (uscf->shm_zone == NULL) {
+            return ngx_stream_dynamic_upstream_lua_error(L, "Shared zone segment is not defined in upstream");
+        }
     }
 
     rc = ngx_dynamic_upstream_stream_op(ngx_http_lua_get_request(L)->connection->log, op, uscf);
@@ -267,13 +271,6 @@ ngx_stream_dynamic_upstream_lua_get_upstreams(lua_State * L)
     umcf = ngx_stream_lua_upstream_get_upstream_main_conf();
     uscfp = umcf->upstreams.elts;
 
-    for (i = 0; i < umcf->upstreams.nelts; i++) {
-        uscf = uscfp[i];
-        if (!uscf->shm_zone) {
-            return ngx_stream_dynamic_upstream_lua_error(L, "no shared zone defined for upstream");
-        }
-    }
-
     lua_pushboolean(L, 1);
 
     lua_newtable(L);
@@ -284,7 +281,7 @@ ngx_stream_dynamic_upstream_lua_get_upstreams(lua_State * L)
 
     for (i = 0; i < umcf->upstreams.nelts; i++) {
         uscf = uscfp[i];
-        lua_pushlstring(L, (char *) uscf->shm_zone->shm.name.data, uscf->shm_zone->shm.name.len);
+        lua_pushlstring(L, (char *) uscf->host.data, uscf->host.len);
         lua_rawseti(L, -2, i + 1);
     }
 
