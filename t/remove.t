@@ -12,7 +12,7 @@ __DATA__
 === TEST 1: remove primary peer
 --- http_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001;
         server 127.0.0.1:6002;
     }
@@ -45,7 +45,7 @@ __DATA__
 === TEST 2: remove backup peer
 --- http_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001;
         server 127.0.0.1:6002 backup;
         server 127.0.0.1:6003 backup;
@@ -89,7 +89,7 @@ __DATA__
 === TEST 3: remove all backup peers
 --- http_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001;
         server 127.0.0.1:6002 backup;
         server 127.0.0.1:6003 backup;
@@ -149,7 +149,7 @@ removed 127.0.0.1:6004
 === TEST 4: remove stream primary peer
 --- stream_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001;
         server 127.0.0.1:6002;
     }
@@ -184,7 +184,7 @@ removed 127.0.0.1:6004
 === TEST 5: remove backup peer
 --- stream_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001;
         server 127.0.0.1:6002 backup;
         server 127.0.0.1:6003 backup;
@@ -230,7 +230,7 @@ removed 127.0.0.1:6004
 === TEST 6: remove all backup peers
 --- stream_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001;
         server 127.0.0.1:6002 backup;
         server 127.0.0.1:6003 backup;

@@ -12,11 +12,11 @@ __DATA__
 === TEST 1: list upstreams
 --- http_config
     upstream backends1 {
-        zone backends1 128k;
+        zone shm-backends1 128k;
         server 127.0.0.1:6001;
     }
     upstream backends2 {
-        zone backends2 128k;
+        zone shm-backends2 128k;
         server 127.0.0.1:6002;
     }
     upstream backends3 {
@@ -48,7 +48,7 @@ backends3
 === TEST 2: list peers
 --- http_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001 weight=1 max_fails=2 max_conns=100 fail_timeout=10 down;
         server 127.0.0.1:6002 weight=1 max_fails=2 max_conns=100 fail_timeout=10;
         server 127.0.0.1:6003 weight=1 max_fails=1 max_conns=200 fail_timeout=10 backup;
@@ -89,11 +89,11 @@ backends3
 === TEST 3: list stream upstreams
 --- stream_config
     upstream backends1 {
-        zone backends1 128k;
+        zone shm-backends1 128k;
         server 127.0.0.1:6001;
     }
     upstream backends2 {
-        zone backends2 128k;
+        zone shm-backends2 128k;
         server 127.0.0.1:6002;
     }
     upstream backends3 {
@@ -126,7 +126,7 @@ backends3
 === TEST 4: list stream peers
 --- stream_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001 weight=1 max_fails=2 max_conns=100 fail_timeout=10 down;
         server 127.0.0.1:6002 weight=1 max_fails=2 max_conns=100 fail_timeout=10;
         server 127.0.0.1:6003 weight=1 max_fails=1 max_conns=200 fail_timeout=10 backup;
