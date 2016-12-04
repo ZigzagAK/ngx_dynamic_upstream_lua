@@ -12,7 +12,7 @@ __DATA__
 === TEST 1: down primary peer
 --- http_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001;
         server 127.0.0.1:6002;
     }
@@ -47,7 +47,7 @@ __DATA__
 === TEST 2: up primary peer
 --- http_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001 down;
         server 127.0.0.1:6002 down;
     }
@@ -82,7 +82,7 @@ __DATA__
 === TEST 3: down primary peer
 --- stream_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001;
         server 127.0.0.1:6002;
     }
@@ -119,7 +119,7 @@ __DATA__
 === TEST 3: up stream primary peer
 --- stream_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001 down;
         server 127.0.0.1:6002 down;
     }

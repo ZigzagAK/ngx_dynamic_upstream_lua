@@ -12,7 +12,7 @@ __DATA__
 === TEST 1: update primary peer
 --- http_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001 weight=1 max_fails=2 max_conns=100 fail_timeout=10 down;
         server 127.0.0.1:6002 weight=1 max_fails=2 max_conns=100 fail_timeout=10;
         server 127.0.0.1:6003 weight=1 max_fails=1 max_conns=200 fail_timeout=10 backup;
@@ -71,7 +71,7 @@ __DATA__
 === TEST 2: update backup peer
 --- http_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001 weight=1 max_fails=2 max_conns=100 fail_timeout=10 down;
         server 127.0.0.1:6002 weight=1 max_fails=2 max_conns=100 fail_timeout=10;
         server 127.0.0.1:6003 weight=1 max_fails=1 max_conns=200 fail_timeout=10 backup;
@@ -129,7 +129,7 @@ __DATA__
 === TEST 3: update stream primary peer
 --- stream_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001 weight=1 max_fails=2 max_conns=100 fail_timeout=10 down;
         server 127.0.0.1:6002 weight=1 max_fails=2 max_conns=100 fail_timeout=10;
         server 127.0.0.1:6003 weight=1 max_fails=1 max_conns=200 fail_timeout=10 backup;
@@ -190,7 +190,7 @@ __DATA__
 === TEST 4: update backup peer
 --- stream_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001 weight=1 max_fails=2 max_conns=100 fail_timeout=10 down;
         server 127.0.0.1:6002 weight=1 max_fails=2 max_conns=100 fail_timeout=10;
         server 127.0.0.1:6003 weight=1 max_fails=1 max_conns=200 fail_timeout=10 backup;

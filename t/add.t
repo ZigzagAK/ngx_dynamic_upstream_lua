@@ -12,7 +12,7 @@ __DATA__
 === TEST 1: add primary peer
 --- http_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001;
     }
 --- config
@@ -45,7 +45,7 @@ __DATA__
 === TEST 2: add backup peer
 --- http_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001;
     }
 --- config
@@ -87,7 +87,7 @@ __DATA__
 === TEST 3: add stream primary peer
 --- stream_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001;
     }
 --- stream_server_config
@@ -122,7 +122,7 @@ __DATA__
 === TEST 4: add stream backup peer
 --- stream_config
     upstream backends {
-        zone backends 128k;
+        zone shm-backends 128k;
         server 127.0.0.1:6001;
     }
 --- stream_server_config
