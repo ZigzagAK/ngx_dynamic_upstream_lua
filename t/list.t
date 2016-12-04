@@ -17,7 +17,10 @@ __DATA__
     }
     upstream backends2 {
         zone backends2 128k;
-        server 127.0.0.1:6001;
+        server 127.0.0.1:6002;
+    }
+    upstream backends3 {
+        server 127.0.0.1:6003;
     }
 --- config
     location /test {
@@ -39,6 +42,7 @@ __DATA__
 --- response_body
 backends1
 backends2
+backends3
 
 
 === TEST 2: list peers
@@ -90,7 +94,10 @@ backends2
     }
     upstream backends2 {
         zone backends2 128k;
-        server 127.0.0.1:6001;
+        server 127.0.0.1:6002;
+    }
+    upstream backends3 {
+        server 127.0.0.1:6003;
     }
 --- stream_server_config
     proxy_pass backends1;
@@ -114,6 +121,7 @@ backends2
 --- response_body
 backends1
 backends2
+backends3
 
 === TEST 4: list stream peers
 --- stream_config
