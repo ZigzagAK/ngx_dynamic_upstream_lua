@@ -108,7 +108,7 @@ local function peer_ok(ctx, peer)
     ctx.set_dict_key("succ", peer, succ)
 
     if succ >= ctx.rise and peer.down then
-        warn("peer ", peer.name, " is turned up after ", succ, " success(es)")
+        debug("peer ", peer.name, " is turned up after ", succ, " success(es)")
         set_peer_state_globally(ctx, peer, state_up(ctx))
     end
 
