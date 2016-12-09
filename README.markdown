@@ -14,6 +14,7 @@ Table of Contents
 * [Status](#status)
 * [Synopsis](#synopsis)
 * [Description](#description)
+* [Install](#install)
 * [Packages](#packages)
 * [Methods](#methods)
     * [get_upstreams](#get_upstreams)
@@ -43,6 +44,30 @@ Description
 ===========
 
 This module provides Lua bindings to manage content of nginx upstreams.
+
+[Back to TOC](#table-of-contents)
+
+Install
+=======
+
+Build nginx.
+All dependencies are downloaded automaticaly.
+
+Pre requirenments (for example centos/redhat)
+
+```
+sudo yum gcc-c++.x86_64 zlib-devel openssl-devel
+```
+
+Build
+
+```
+git clone git@github.com:ZigzagAK/ngx_dynamic_upstream_lua.git
+cd ngx_dynamic_upstream_lua
+./build.sh
+```
+
+Archive will be placed in the `install` folder after successful build.
 
 [Back to TOC](#table-of-contents)
 
