@@ -50,13 +50,13 @@ end
 --- Helpers -----------------------------------------------------------------------------------
 
 local function gen_peer_key(prefix, peer)
-  return prefix .. peer.upstream .. ":" .. peer.name
+  return prefix .. peer.upstream.name .. ":" .. peer.name
 end
 
 --- Implementation ----------------------------------------------------------------------------
 
 local function set_peer_state_globally(ctx, peer, state)
-  local ok, _, err = state.fun(peer.upstream, peer)
+  local ok, _, err = state.fun(peer.upstream.name, peer)
   if not ok then
     errlog("failed to set peer state: ", err)
   end
@@ -92,7 +92,7 @@ local function peer_fail(ctx, peer)
 
   ctx.set_dict_key("fail", peer, fails)
 
-  if fails >= peer.healthcheck.fall and not peer.down then
+  if fails >= peer.upstream.healthcheck.fall and not peer.down then
     warn("peer ", peer.name, " is turned down after ", fails, " failure(s)")
     set_peer_state_globally(ctx, peer, state_down(ctx))
   end
@@ -114,7 +114,7 @@ local function peer_ok(ctx, peer)
 
   ctx.set_dict_key("succ", peer, succ)
 
-  if succ >= peer.healthcheck.rise and peer.down then
+  if succ >= peer.upstream.healthcheck.rise and peer.down then
     debug("peer ", peer.name, " is turned up after ", succ, " success(es)")
     set_peer_state_globally(ctx, peer, state_up(ctx))
   end
@@ -149,7 +149,7 @@ local function check_tcp(ctx, peer)
     return
   end
 
-  sock:settimeout(peer.healthcheck.timeout)
+  sock:settimeout(peer.upstream.healthcheck.timeout)
 
   if peer.host then
     ok, err = sock:connect(peer.host, peer.port)
@@ -171,7 +171,7 @@ end
 local function check_peer(ctx, peer)
   local err
 
-  if ctx.typ == "tcp" or not peer.healthcheck.command then
+  if ctx.typ == "tcp" or not peer.upstream.healthcheck.command then
     check_tcp(ctx, peer)
     return
   end
@@ -180,10 +180,10 @@ local function check_peer(ctx, peer)
 
   local httpc = http.new()
 
-  httpc:set_timeout(peer.healthcheck.timeout)
+  httpc:set_timeout(peer.upstream.healthcheck.timeout)
   
   local response
-  response, err = httpc:request_uri("http://" .. peer.name .. peer.healthcheck.command.uri, peer.healthcheck.command)
+  response, err = httpc:request_uri("http://" .. peer.name .. peer.upstream.healthcheck.command.uri, peer.upstream.healthcheck.command)
 
   if not response then
     warn("Checking ", ctx.upstream_type, " peer ", peer.name, " : ", err)
@@ -195,7 +195,7 @@ local function check_peer(ctx, peer)
 
   local ok = true
 
-  if peer.healthcheck.command.expected then
+  if peer.upstream.healthcheck.command.expected then
 
     debug("Checking ", ctx.upstream_type, " peer ", peer.name, " : http status=", response.status, " body=[", response.body, "]")
 
@@ -210,14 +210,14 @@ local function check_peer(ctx, peer)
       return false
     end
     
-    if peer.healthcheck.command.expected.codes then
-      ok = check_status(peer.healthcheck.command.expected.codes, response.status)
+    if peer.upstream.healthcheck.command.expected.codes then
+      ok = check_status(peer.upstream.healthcheck.command.expected.codes, response.status)
     end
 
-    if ok and peer.healthcheck.command.expected.body then
-      ok, _ = ngx.re.match(response.body, peer.healthcheck.command.expected.body)
+    if ok and peer.upstream.healthcheck.command.expected.body then
+      ok, _ = ngx.re.match(response.body, peer.upstream.healthcheck.command.expected.body)
       if not ok then
-        debug("Checking ", ctx.upstream_type, " peer ", peer.name, " : body=[", response.body, "] is not match the re=", peer.healthcheck.command.expected.body)
+        debug("Checking ", ctx.upstream_type, " peer ", peer.name, " : body=[", response.body, "] is not match the re=", peer.upstream.healthcheck.command.expected.body)
       end
     end
 
@@ -276,17 +276,17 @@ local function do_check(ctx)
 
   local all_peers = {}
 
-  for _, u in pairs(ctx.upstreams)
+  for _, u in ipairs(ctx.upstreams)
   do
-    local ok, peers, err = ctx.get_peers(u)
+    local ok, peers, err = ctx.get_peers(u.name)
     if not ok then
-      warn("failed to get peers [upstream:" .. u .. "]: ", err)
+      warn("failed to get peers [upstream:" .. u.name .. "]: ", err)
     else
       for i, peer in pairs(preprocess_peers(peers, u))
       do
-        if peer.healthcheck or ctx.check_all then
-          if not peer.healthcheck then
-            peer.healthcheck = ctx.healthcheck
+        if peer.upstream.healthcheck or ctx.check_all then
+          if not peer.upstream.healthcheck then
+            peer.upstream.healthcheck = ctx.healthcheck
           end
           table.insert(all_peers, peer)
         end
@@ -323,14 +323,14 @@ end
 local function init_down_state(ctx)
   for _, u in pairs(ctx.upstreams)
   do
-    local ok, peers, err = ctx.get_peers(u)
+    local ok, peers, err = ctx.get_peers(u.name)
     if not ok then
       error(err)
     end
     for _, peer in ipairs(peers)
     do
-      if peer.healthcheck or ctx.check_all then
-        ctx.set_peer_down(u, peer)
+      if u.healthcheck or ctx.check_all then
+        ctx.set_peer_down(u.name, peer)
       end
     end
   end
@@ -359,8 +359,6 @@ local function spawn_checker(self)
     set_peer_up   = self.tab.set_peer_up,
     get_peers     = self.tab.get_peers,
     get_upstreams = self.tab.get_upstreams,
-
-    upstreams = opts.upstreams,
 
     set_dict_key = function(prefix, peer, val)
       local key = gen_peer_key(self.ctx.upstream_type .. ":" .. prefix .. ":", peer)
@@ -406,19 +404,15 @@ local function spawn_checker(self)
     return nil, "'http' and 'tcp' type can be used"
   end
 
-  if not ctx.upstreams then
-    local ok, err
-    ok, ctx.upstreams, err = self.tab.get_upstreams()
-    if not ok then
-      return nil, err
-    end
+  local ok, err
+  ok, ctx.upstreams, err = self.ctx.get_upstreams()
+  if not ok then
+    return nil, err
   end
 
   if ctx.interval < 1 then
     ctx.interval = 1
   end
-
-  local ok, err
 
   ctx.mutex, err = lock:new(ctx.shm)
   if not ctx.mutex then
@@ -458,7 +452,7 @@ function _M.new(upstream_type, opts, tab)
 end
 
 function _M.successes(upstream_type, dict, u, peer)
-  peer.upstream = u
+  peer.upstream = { name = u }
   local val, _ = dict:get(gen_peer_key(upstream_type .. ":g_successes:", peer))
   if not val then
     val = "-"
@@ -467,7 +461,7 @@ function _M.successes(upstream_type, dict, u, peer)
 end
 
 function _M.fails(upstream_type, dict, u, peer)
-  peer.upstream = u
+  peer.upstream = { name = u }
   local val, _ = dict:get(gen_peer_key(upstream_type .. ":g_fails:", peer))
   if not val then
     val = "-"
