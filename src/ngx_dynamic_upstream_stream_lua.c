@@ -15,10 +15,6 @@ extern ngx_module_t ngx_stream_dynamic_upstream_lua_module;
 
 
 static int
-ngx_stream_dynamic_upstream_lua_create_module(lua_State * L);
-
-
-static int
 ngx_stream_dynamic_upstream_lua_get_upstreams(lua_State * L);
 static int
 ngx_stream_dynamic_upstream_lua_get_healthcheck(lua_State * L);
@@ -44,20 +40,6 @@ ngx_stream_dynamic_upstream_lua_update_peer(lua_State * L);
 
 static ngx_stream_upstream_main_conf_t *
 ngx_stream_lua_upstream_get_upstream_main_conf();
-
-
-ngx_int_t
-ngx_stream_dynamic_upstream_lua_init(ngx_conf_t *cf)
-{
-    if (ngx_http_lua_add_package_preload(cf, "ngx.dynamic_upstream.stream",
-                                         ngx_stream_dynamic_upstream_lua_create_module)
-        != NGX_OK)
-    {
-        return NGX_ERROR;
-    }
-
-    return NGX_OK;
-}
 
 
 int
