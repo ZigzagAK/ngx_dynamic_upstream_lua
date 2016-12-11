@@ -17,8 +17,8 @@ struct ngx_stream_dynamic_upstream_lua_srv_conf_s {
 typedef struct ngx_stream_dynamic_upstream_lua_srv_conf_s ngx_stream_dynamic_upstream_lua_srv_conf_t;
 
 
-ngx_int_t
-ngx_stream_dynamic_upstream_lua_init(ngx_conf_t *cf);
+int
+ngx_stream_dynamic_upstream_lua_create_module(lua_State * L);
 
 
 #endif

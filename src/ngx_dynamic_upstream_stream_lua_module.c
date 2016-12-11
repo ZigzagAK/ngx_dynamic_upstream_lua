@@ -2,6 +2,7 @@
 #include <ngx_http.h>
 #include <ngx_stream.h>
 #include <lauxlib.h>
+#include "ngx_stream_lua_api.h"
 
 
 #include "ngx_dynamic_upstream_stream_lua.h"
@@ -12,6 +13,10 @@ ngx_module_t ngx_stream_dynamic_upstream_lua_module;
 
 static char *
 ngx_stream_dynamic_upstream_lua_init_main_conf(ngx_conf_t *cf, void *conf);
+
+
+static ngx_int_t
+ngx_stream_dynamic_upstream_lua_post_conf(ngx_conf_t *cf);
 
 
 static void *
@@ -40,7 +45,7 @@ static ngx_command_t ngx_stream_dynamic_upstream_lua_commands[] = {
 
 static ngx_stream_module_t ngx_stream_dynamic_upstream_lua_ctx = {
     NULL,                                           /* preconfiguration */
-    NULL,                                           /* postconfiguration */
+    ngx_stream_dynamic_upstream_lua_post_conf,      /* postconfiguration */
     NULL,                                           /* create main configuration */
     ngx_stream_dynamic_upstream_lua_init_main_conf, /* init main configuration */
     ngx_stream_dynamic_upstream_lua_create_srv_conf,/* create server configuration */
@@ -62,6 +67,20 @@ ngx_module_t ngx_stream_dynamic_upstream_lua_module = {
     NULL,                                     /* exit master */
     NGX_MODULE_V1_PADDING
 };
+
+
+ngx_int_t
+ngx_stream_dynamic_upstream_lua_post_conf(ngx_conf_t *cf)
+{
+    if (ngx_stream_lua_add_package_preload(cf, "ngx.dynamic_upstream.stream",
+                                           ngx_stream_dynamic_upstream_lua_create_module)
+        != NGX_OK)
+    {
+        return NGX_ERROR;
+    }
+
+    return NGX_OK;
+}
 
 
 static char *

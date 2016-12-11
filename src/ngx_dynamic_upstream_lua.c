@@ -39,6 +39,8 @@ static int
 ngx_http_dynamic_upstream_lua_remove_peer(lua_State * L);
 static int
 ngx_http_dynamic_upstream_lua_update_peer(lua_State * L);
+static int
+ngx_http_dynamic_upstream_lua_current_upstream(lua_State *L);
 
 
 ngx_int_t
@@ -58,7 +60,7 @@ ngx_http_dynamic_upstream_lua_init(ngx_conf_t *cf)
 static int
 ngx_http_dynamic_upstream_lua_create_module(lua_State * L)
 {
-    lua_createtable(L, 0, 11);
+    lua_createtable(L, 0, 12);
 
     lua_pushcfunction(L, ngx_http_dynamic_upstream_lua_get_upstreams);
     lua_setfield(L, -2, "get_upstreams");
@@ -92,6 +94,9 @@ ngx_http_dynamic_upstream_lua_create_module(lua_State * L)
 
     lua_pushcfunction(L, ngx_http_dynamic_upstream_lua_update_peer);
     lua_setfield(L, -2, "update_peer");
+
+    lua_pushcfunction(L, ngx_http_dynamic_upstream_lua_current_upstream);
+    lua_setfield(L, -2, "current_upstream");
 
     return 1;
 }
@@ -667,4 +672,43 @@ ngx_http_dynamic_upstream_lua_update_peer(lua_State * L)
     ngx_http_dynamic_upstream_lua_update_peer_parse_params(L, &op);
 
     return ngx_http_dynamic_upstream_lua_op(L, &op, 0);
+}
+
+
+static int
+ngx_http_dynamic_upstream_lua_current_upstream(lua_State *L)
+{
+    ngx_http_request_t           *r;
+    ngx_http_upstream_t          *us;
+    ngx_http_upstream_conf_t     *ucf;
+    ngx_http_upstream_srv_conf_t *uscf;
+
+    r = ngx_http_lua_get_request(L);
+    if (r == NULL) {
+        return ngx_http_dynamic_upstream_lua_error(L, "no request object found");
+    }
+
+    us = r->upstream;
+    if (us == NULL) {
+        return ngx_http_dynamic_upstream_lua_error(L, "no proxying");
+    }
+
+    uscf = us->upstream;
+
+    if (uscf == NULL) {
+        ucf = us->conf;
+        if (ucf == NULL) {
+            return ngx_http_dynamic_upstream_lua_error(L, "no conf for upstream");
+        }
+        uscf = ucf->upstream;
+        if (uscf == NULL) {
+            return ngx_http_dynamic_upstream_lua_error(L, "no srv conf for upstream");
+        }
+    }
+
+    lua_pushboolean(L, 1);
+    lua_pushlstring(L, (char *) uscf->host.data, uscf->host.len);
+    lua_pushnil(L);
+
+    return 3;
 }
