@@ -1,5 +1,9 @@
+# HTTP module
+
 ngx_addon_name=ngx_http_dynamic_upstream_lua_module
-HTTP_LUA_UPSTREAM_SRCS="$ngx_addon_dir/ngx_dynamic_upstream_lua.c $ngx_addon_dir/ngx_dynamic_upstream_stream_lua.c"
+HTTP_LUA_UPSTREAM_SRCS="$ngx_addon_dir/src/ngx_dynamic_upstream_lua.c \
+                        $ngx_addon_dir/src/ngx_dynamic_upstream_lua_module.c"
+
 
 if test -n "$ngx_module_link"; then
     ngx_module_type=HTTP
@@ -10,6 +14,28 @@ if test -n "$ngx_module_link"; then
 else
     HTTP_MODULES="$HTTP_MODULES $ngx_addon_name"
     NGX_ADDON_SRCS="$NGX_ADDON_SRCS $HTTP_LUA_UPSTREAM_SRCS"
+
+    CORE_INCS="$CORE_INCS $ngx_module_incs"
+    CORE_LIBS="$CORE_LIBS $ngx_module_libs"
+fi
+
+
+# STREAM module
+
+ngx_addon_name=ngx_stream_dynamic_upstream_lua_module
+STREAM_LUA_UPSTREAM_SRCS="$ngx_addon_dir/src/ngx_dynamic_upstream_stream_lua.c \
+                          $ngx_addon_dir/src/ngx_dynamic_upstream_stream_lua_module.c"
+
+
+if test -n "$ngx_module_link"; then
+    ngx_module_type=STREAM
+    ngx_module_name=$ngx_addon_name
+    ngx_module_srcs="$STREAM_LUA_UPSTREAM_SRCS"
+
+    . auto/module
+else
+    STREAM_MODULES="$STREAM_MODULES $ngx_addon_name"
+    NGX_ADDON_SRCS="$NGX_ADDON_SRCS $STREAM_LUA_UPSTREAM_SRCS"
 
     CORE_INCS="$CORE_INCS $ngx_module_incs"
     CORE_LIBS="$CORE_LIBS $ngx_module_libs"

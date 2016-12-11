@@ -38,7 +38,7 @@ function _M.get_peers(u)
 end
 
 function _M.get_upstreams()
-    return upstream.get_upstreams()
+    return upstream.get_healthcheck()
 end
 
 return _M
