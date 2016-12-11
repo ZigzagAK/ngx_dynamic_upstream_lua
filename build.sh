@@ -60,7 +60,7 @@ function build_debug() {
               --with-pcre=$PCRE_PREFIX \
               --with-stream \
               --with-debug \
-              --with-cc-opt="-O0" \
+              --with-cc-opt="-O0 -DNO_NGX_STREAM_LUA_MODULE" \
               --add-module=../ngx_devel_kit \
               --add-module=../lua-nginx-module \
               --add-module=../ngx_dynamic_upstream \
@@ -91,7 +91,7 @@ function build_release() {
               --with-pcre=$PCRE_PREFIX \
               --with-stream \
               --with-debug \
-              --with-cc-opt="-O0" \
+              --with-cc-opt="-DNO_NGX_STREAM_LUA_MODULE" \
               --add-module=../ngx_devel_kit \
               --add-module=../lua-nginx-module \
               --add-module=../ngx_dynamic_upstream \
