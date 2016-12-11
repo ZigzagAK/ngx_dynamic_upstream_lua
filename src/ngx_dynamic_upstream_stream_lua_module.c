@@ -2,8 +2,11 @@
 #include <ngx_http.h>
 #include <ngx_stream.h>
 #include <lauxlib.h>
-#include "ngx_stream_lua_api.h"
 
+
+#ifndef NO_NGX_STREAM_LUA_MODULE
+#include "ngx_stream_lua_api.h"
+#endif
 
 #include "ngx_dynamic_upstream_stream_lua.h"
 
@@ -72,13 +75,14 @@ ngx_module_t ngx_stream_dynamic_upstream_lua_module = {
 ngx_int_t
 ngx_stream_dynamic_upstream_lua_post_conf(ngx_conf_t *cf)
 {
+#ifndef NO_NGX_STREAM_LUA_MODULE
     if (ngx_stream_lua_add_package_preload(cf, "ngx.dynamic_upstream.stream",
                                            ngx_stream_dynamic_upstream_lua_create_module)
         != NGX_OK)
     {
         return NGX_ERROR;
     }
-
+#endif
     return NGX_OK;
 }
 
