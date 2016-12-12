@@ -37,7 +37,7 @@ __DATA__
                do
                  ngx.say(k,"=",v)
                end               
-               ngx.say(string.format("%s %s %s", u.healthcheck.command.uri, u.healthcheck.command.body, u.healthcheck.command.expected.body))
+               ngx.say(string.format("%s %s %s %s", u.healthcheck.command.uri, u.healthcheck.command.method, u.healthcheck.command.body, u.healthcheck.command.expected.body))
                for _,c in ipairs(u.healthcheck.command.expected.codes)
                do
                  ngx.say(c)
@@ -51,7 +51,7 @@ __DATA__
 backends http 2 1 1500
 aaa=333
 bbb=444
-/heartbeat hello .*
+/heartbeat GET hello .*
 200
 201
 
