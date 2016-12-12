@@ -379,6 +379,11 @@ ngx_http_dynamic_upstream_lua_push_healthcheck(lua_State *L, ngx_http_upstream_s
                                         uduscf->request_uri.len);
             lua_rawset(L, -3);
 
+            lua_pushliteral(L, "method");
+            lua_pushlstring(L, (char *) uduscf->request_method.data,
+                                        uduscf->request_method.len);
+            lua_rawset(L, -3);
+
             if (uduscf->request_headers != NGX_CONF_UNSET_PTR) {
                 ngx_header_t *headers = uduscf->request_headers->elts;
 
