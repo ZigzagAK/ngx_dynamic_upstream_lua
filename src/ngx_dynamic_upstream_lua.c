@@ -41,6 +41,8 @@ static int
 ngx_http_dynamic_upstream_lua_update_peer(lua_State * L);
 static int
 ngx_http_dynamic_upstream_lua_current_upstream(lua_State *L);
+static int
+ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L);
 
 
 ngx_int_t
@@ -60,7 +62,7 @@ ngx_http_dynamic_upstream_lua_init(ngx_conf_t *cf)
 static int
 ngx_http_dynamic_upstream_lua_create_module(lua_State * L)
 {
-    lua_createtable(L, 0, 12);
+    lua_createtable(L, 0, 13);
 
     lua_pushcfunction(L, ngx_http_dynamic_upstream_lua_get_upstreams);
     lua_setfield(L, -2, "get_upstreams");
@@ -97,6 +99,9 @@ ngx_http_dynamic_upstream_lua_create_module(lua_State * L)
 
     lua_pushcfunction(L, ngx_http_dynamic_upstream_lua_current_upstream);
     lua_setfield(L, -2, "current_upstream");
+
+    lua_pushcfunction(L, ngx_http_dynamic_upstream_lua_update_healthcheck);
+    lua_setfield(L, -2, "update_healthcheck");
 
     return 1;
 }
@@ -716,4 +721,154 @@ ngx_http_dynamic_upstream_lua_current_upstream(lua_State *L)
     lua_pushnil(L);
 
     return 3;
+}
+
+
+static ngx_str_t
+lua_get_string(lua_State *L, ngx_pool_t *pool, int index)
+{
+    ngx_str_t r = { .data = NULL, .len = 0 };
+    const char *s;
+    s = lua_tostring(L, index);
+    if (s != NULL) {
+        r.len = strlen(s);
+        r.data = ngx_pcalloc(pool, r.len);
+        if (r.data != NULL) {
+            ngx_memcpy(r.data, s, r.len);
+        } else {
+            r.len = 0;
+        }
+    }
+    return r;
+}
+
+
+static int
+ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
+{
+    ngx_http_upstream_srv_conf_t             *us;
+    ngx_http_dynamic_upstream_lua_srv_conf_t *uduscf = NULL;
+    ngx_dynamic_upstream_op_t                 op;
+    int                                       top = lua_gettop(L);
+    const char                               *error = "Unknown error";
+    ngx_header_t                             *header;
+    ngx_uint_t                               *code;
+    const char                               *s;
+
+    if (top != 2 && !lua_istable(L, 2)) {
+        return ngx_http_dynamic_upstream_lua_error(L, "exactly 2 arguments expected");
+    }
+
+    op.upstream.data = (u_char *) luaL_checklstring(L, 1, &op.upstream.len);
+
+    us = ngx_dynamic_upstream_get(L, &op);
+    if (us != NULL) {
+        uduscf = ngx_http_conf_upstream_srv_conf(us, ngx_http_dynamic_upstream_lua_module);
+    }
+
+    if (uduscf == NULL) {
+        return ngx_http_dynamic_upstream_lua_error(L, "Upstream not found");
+    }
+
+    lua_getfield(L, 2, "fall");
+    lua_getfield(L, 2, "rise");
+    lua_getfield(L, 2, "timeout");
+
+    uduscf->fall = lua_tointeger(L, -3);
+    uduscf->rise = lua_tointeger(L, -2);
+    uduscf->timeout = lua_tointeger(L, -1);
+
+    lua_pop(L, 3);
+
+    lua_getfield(L, 2, "command");
+
+    if (lua_istable(L, 3)) {
+        lua_getfield(L, 3, "uri");
+        lua_getfield(L, 3, "body");
+
+        uduscf->request_uri = lua_get_string(L, ngx_cycle->pool, -2);
+        uduscf->request_body = lua_get_string(L, ngx_cycle->pool, -1);
+
+        lua_pop(L, 2);
+
+        lua_getfield(L, 3, "headers");
+
+        if (lua_istable(L, 4)) {
+            lua_pushvalue(L, -1);
+            lua_pushnil(L);
+
+            while (lua_next(L, -2))
+            {
+                header = ngx_array_push(uduscf->request_headers);
+                if (header == NULL)
+                {
+                    error = "Memory allocation error";
+                    goto error;
+                }
+
+                lua_pushvalue(L, -2);
+
+                header->name = lua_get_string(L, ngx_cycle->pool, -1);
+                header->value = lua_get_string(L, ngx_cycle->pool, -2);
+
+                lua_pop(L, 2);
+            }
+
+            lua_pop(L, 1);
+        }
+
+        lua_pop(L, 1);
+
+        lua_getfield(L, 3, "expected");
+
+        if (lua_istable(L, 4)) {
+            lua_getfield(L, 4, "body");
+            uduscf->response_body = lua_get_string(L, ngx_cycle->pool, -1);
+            lua_pop(L, 1);
+
+            lua_getfield(L, 4, "codes");
+
+            if (lua_istable(L, 4)) {
+                lua_pushvalue(L, -1);
+                lua_pushnil(L);
+
+                while (lua_next(L, -2))
+                {
+                    code = ngx_array_push(uduscf->response_codes);
+                    if (code == NULL)
+                    {
+                        error = "Memory allocation error";
+                        goto error;
+                    }
+
+                    lua_pushvalue(L, -2);
+                    *code = lua_tointeger(L, -2);
+
+                    lua_pop(L, 2);
+                }
+
+                lua_pop(L, 1);
+            }
+
+            lua_pop(L, 1);
+        }
+
+        lua_pop(L, 1);
+    }
+
+    lua_pop(L, 1);
+    
+    uduscf->initialized = 1;
+
+    lua_settop(L, top);
+
+    lua_pushboolean(L, 1);
+    lua_pushnil(L);
+
+    return 2;
+
+error:
+
+    lua_settop(L, top);
+    return ngx_http_dynamic_upstream_lua_error(L, error);
 }
