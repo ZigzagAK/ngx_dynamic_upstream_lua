@@ -2,12 +2,11 @@
 
 
 ngx_shm_zone_t *
-ngx_shared_memory_find(volatile ngx_cycle_t *cycle, u_char *zone_name, void *tag)
+ngx_shared_memory_find(volatile ngx_cycle_t *cycle, ngx_str_t name, void *tag)
 {
     ngx_uint_t        i;
     ngx_shm_zone_t   *shm_zone;
     ngx_list_part_t  *part;
-    ngx_str_t         name = { .data = zone_name, .len = ngx_strlen(zone_name) };
 
     part = (ngx_list_part_t *) &(cycle->shared_memory.part);
     shm_zone = part->elts;
@@ -40,4 +39,54 @@ ngx_shared_memory_find(volatile ngx_cycle_t *cycle, u_char *zone_name, void *tag
     }
 
     return NULL;
+}
+
+
+ngx_str_t
+ngx_shm_copy_string(ngx_slab_pool_t *shpool, ngx_str_t src)
+{
+    ngx_str_t s = { .data = 0, .len = 0 };
+    if (src.len) {
+        s.data = ngx_slab_calloc_locked(shpool, src.len);
+        if (s.data != NULL) {
+            ngx_memcpy(s.data, src.data, src.len);
+            s.len = src.len;
+        }
+    }
+    return s;
+}
+
+
+ngx_pair_t *
+ngx_shm_copy_pairs(ngx_slab_pool_t *shpool, ngx_pair_t *src, ngx_uint_t count)
+{
+    ngx_pair_t *pairs = NULL;
+    ngx_uint_t    i;
+    if (count) {
+        pairs = ngx_slab_calloc(shpool, count * sizeof(ngx_pair_t));
+        if (pairs != NULL) {
+            for (i = 0; i < count; ++i) {
+                pairs[i].name = ngx_shm_copy_string(shpool, src[i].name);
+                pairs[i].value = ngx_shm_copy_string(shpool, src[i].value);
+                if (pairs[i].name.data == NULL || pairs[i].value.data == NULL) {
+                    return NULL;
+                }
+            }
+        }
+    }
+    return pairs;
+}
+
+
+ngx_uint_t *
+ngx_shm_copy_uint_vec(ngx_slab_pool_t *shpool, ngx_uint_t *src, ngx_uint_t count)
+{
+    ngx_uint_t *codes = NULL;
+    if (count) {
+        codes = ngx_slab_calloc(shpool, count * sizeof(ngx_uint_t));
+        if (codes != NULL) {
+            ngx_memcpy(codes, src, count * sizeof(ngx_uint_t));
+        }
+    }
+    return codes;
 }

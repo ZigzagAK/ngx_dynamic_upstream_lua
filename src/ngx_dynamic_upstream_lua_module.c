@@ -4,9 +4,7 @@
 #include "ngx_http_lua_api.h"
 
 
-#include <assert.h>
-
-
+#include "ngx_dynamic_shm.h"
 #include "ngx_dynamic_upstream_lua.h"
 #include "ngx_dynamic_upstream_stream_lua.h"
 
@@ -16,7 +14,6 @@ ngx_module_t ngx_http_dynamic_upstream_lua_module;
 
 static ngx_int_t
 ngx_http_dynamic_upstream_lua_post_conf(ngx_conf_t *cf);
-
 static char *
 ngx_http_dynamic_upstream_lua_init_main_conf(ngx_conf_t *cf, void *conf);
 
@@ -39,6 +36,10 @@ static void *
 ngx_http_dynamic_upstream_lua_create_srv_conf(ngx_conf_t *cf);
 static char *
 ngx_http_dynamic_upstream_lua_init_srv_conf(ngx_conf_t *cf, void *conf);
+
+
+static ngx_shm_zone_t *
+ngx_http_create_shm_zone(ngx_conf_t *cf, ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf);
 
 
 static ngx_command_t ngx_http_dynamic_upstream_lua_commands[] = {
@@ -159,53 +160,29 @@ ngx_http_dynamic_upstream_lua_init_main_conf(ngx_conf_t *cf, void *conf)
 }
 
 
-ngx_str_t
-ngx_http_copy_string(ngx_slab_pool_t *shpool, ngx_str_t src)
+static char *
+ngx_http_dynamic_upstream_lua_init_srv_conf(ngx_conf_t *cf, void *conf)
 {
-    ngx_str_t s = { .data = 0, .len = 0 };
-    if (src.len) {
-        s.data = ngx_slab_calloc_locked(shpool, src.len);
-        if (s.data != NULL) {
-            ngx_memcpy(s.data, src.data, src.len);
-            s.len = src.len;
-        }
+    ngx_http_upstream_srv_conf_t             *uscf = conf;
+    ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf;
+
+    if (uscf->srv_conf == NULL) {
+        return NGX_CONF_OK;
     }
-    return s;
-}
 
-
-static ngx_header_t *
-ngx_http_copy_headers(ngx_slab_pool_t *shpool, ngx_header_t *src, ngx_uint_t count)
-{
-    ngx_header_t *headers = NULL;
-    ngx_uint_t    i;
-    if (count) {
-        headers = ngx_slab_calloc(shpool, count * sizeof(ngx_header_t));
-        if (headers != NULL) {
-            for (i = 0; i < count; ++i) {
-                headers[i].name = ngx_http_copy_string(shpool, src[i].name);
-                headers[i].value = ngx_http_copy_string(shpool, src[i].value);
-                if (headers[i].name.data == NULL || headers[i].value.data == NULL) {
-                    return NULL;
-                }
-            }
-        }
+    ucscf = ngx_http_conf_upstream_srv_conf(uscf, ngx_http_dynamic_upstream_lua_module);
+    if (ucscf == NULL) {
+        return NGX_CONF_ERROR;
     }
-    return headers;
-}
 
+    ucscf->conf->upstream = uscf->host;
+    ucscf->shm_zone = ngx_http_create_shm_zone(cf, ucscf);
 
-static ngx_uint_t *
-ngx_http_copy_codes(ngx_slab_pool_t *shpool, ngx_uint_t *src, ngx_uint_t count)
-{
-    ngx_uint_t *codes = NULL;
-    if (count) {
-        codes = ngx_slab_calloc(shpool, count * sizeof(ngx_uint_t));
-        if (codes != NULL) {
-            ngx_memcpy(codes, src, count * sizeof(ngx_uint_t));
-        }
+    if (ucscf->shm_zone == NULL) {
+        return NGX_CONF_ERROR;
     }
-    return codes;
+
+    return NGX_CONF_OK;
 }
 
 
@@ -232,18 +209,18 @@ ngx_http_init_shm_zone(ngx_shm_zone_t *shm_zone, void *data)
     ucscf->data->rise    = ucscf->conf->rise;
     ucscf->data->timeout = ucscf->conf->timeout;
 
-    ucscf->data->upstream       = ngx_http_copy_string(ucscf->shpool, ucscf->conf->upstream);
-    ucscf->data->type           = ngx_http_copy_string(ucscf->shpool, ucscf->conf->type);
-    ucscf->data->request_uri    = ngx_http_copy_string(ucscf->shpool, ucscf->conf->request_uri);
-    ucscf->data->request_method = ngx_http_copy_string(ucscf->shpool, ucscf->conf->request_method);
-    ucscf->data->request_body   = ngx_http_copy_string(ucscf->shpool, ucscf->conf->request_body);
-    ucscf->data->response_body  = ngx_http_copy_string(ucscf->shpool, ucscf->conf->response_body);
+    ucscf->data->upstream       = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->upstream);
+    ucscf->data->type           = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->type);
+    ucscf->data->request_uri    = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->request_uri);
+    ucscf->data->request_method = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->request_method);
+    ucscf->data->request_body   = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->request_body);
+    ucscf->data->response_body  = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->response_body);
 
     ucscf->data->request_headers_count = ucscf->conf->request_headers_count;
     ucscf->data->response_codes_count  = ucscf->conf->response_codes_count;
 
-    ucscf->data->request_headers = ngx_http_copy_headers(ucscf->shpool, ucscf->conf->request_headers, ucscf->conf->request_headers_count);
-    ucscf->data->response_codes = ngx_http_copy_codes(ucscf->shpool, ucscf->conf->response_codes, ucscf->conf->response_codes_count);
+    ucscf->data->request_headers = ngx_shm_copy_pairs(ucscf->shpool, ucscf->conf->request_headers, ucscf->conf->request_headers_count);
+    ucscf->data->response_codes = ngx_shm_copy_uint_vec(ucscf->shpool, ucscf->conf->response_codes, ucscf->conf->response_codes_count);
 
     rc = rc && (ucscf->data->upstream.data        || NULL == ucscf->conf->upstream.data);
     rc = rc && (ucscf->data->type.data            || NULL == ucscf->conf->type.data);
@@ -272,9 +249,9 @@ ngx_http_create_shm_zone(ngx_conf_t *cf,
     ngx_shm_zone_t  *shm_zone;
     ngx_str_t        shm_zone_name;
 
-    shm_zone_name.len = ucscf->conf->upstream.len + strlen("ngx_http_dynamic_upstream_lua_module") + 1;
+    shm_zone_name.len = strlen("ngx_http_dynamic_upstream_lua_module:") + ucscf->conf->upstream.len;
     shm_zone_name.data = ngx_pcalloc(cf->pool, shm_zone_name.len);
-    ngx_snprintf(shm_zone_name.data, shm_zone_name.len, "ngx_http_dynamic_upstream_lua_module:%s", ucscf->conf->upstream.data);
+    ngx_snprintf(shm_zone_name.data, shm_zone_name.len + 1, "ngx_http_dynamic_upstream_lua_module:%s\0", ucscf->conf->upstream.data);
 
     shm_zone = ngx_shared_memory_add(cf, &shm_zone_name, 2048000, &ngx_http_dynamic_upstream_lua_module);
 
@@ -287,13 +264,6 @@ ngx_http_create_shm_zone(ngx_conf_t *cf,
     shm_zone->data = ucscf;
 
     return shm_zone;
-}
-
-
-static ngx_http_dynamic_upstream_lua_srv_conf_t *
-ngx_http_get_dynamic_upstream_lua_srv_conf(ngx_conf_t *cf)
-{
-    return ngx_http_conf_get_module_srv_conf(cf, ngx_http_dynamic_upstream_lua_module);
 }
 
 
@@ -317,46 +287,13 @@ ngx_http_dynamic_upstream_lua_create_srv_conf(ngx_conf_t *cf)
 
 
 static char *
-ngx_http_dynamic_upstream_lua_init_srv_conf(ngx_conf_t *cf, void *conf)
-{
-    ngx_http_upstream_srv_conf_t             *uscf = conf;
-    ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf;
-
-    if (uscf->srv_conf == NULL) {
-        return NGX_CONF_OK;
-    }
-
-    ucscf = ngx_http_conf_upstream_srv_conf(uscf, ngx_http_dynamic_upstream_lua_module);
-    if (ucscf == NULL) {
-        return NGX_CONF_ERROR;
-    }
-
-    ucscf->conf->upstream = uscf->host;
-    ucscf->shm_zone = ngx_http_create_shm_zone(cf, ucscf);
-
-    if (ucscf->shm_zone == NULL) {
-        return NGX_CONF_ERROR;
-    }
-
-    ucscf->shpool = (ngx_slab_pool_t *) ucscf->shm_zone->shm.addr;
-    ucscf->data = ucscf->shm_zone->data;
-
-    return NGX_CONF_OK;
-}
-
-
-static char *
 ngx_http_dynamic_upstream_lua_check(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_str_t                                *value;
     ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf;
     ngx_uint_t i;
 
-    if (ngx_worker != 0) {
-        return NGX_CONF_OK;
-    }
-
-    ucscf = ngx_http_get_dynamic_upstream_lua_srv_conf(cf);
+    ucscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_dynamic_upstream_lua_module);
     if (ucscf == NULL) {
         return NGX_CONF_ERROR;
     }
@@ -429,7 +366,7 @@ ngx_http_dynamic_upstream_lua_check_request_uri(ngx_conf_t *cf, ngx_command_t *c
     ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf;
     ngx_str_t                                *value;
 
-    ucscf = ngx_http_get_dynamic_upstream_lua_srv_conf(cf);
+    ucscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_dynamic_upstream_lua_module);
     if (ucscf == NULL) {
         return NGX_CONF_ERROR;
     }
@@ -451,20 +388,20 @@ ngx_http_dynamic_upstream_lua_check_request_headers(ngx_conf_t *cf, ngx_command_
     char                                     *sep;
     ngx_uint_t                                i;
 
-    ucscf = ngx_http_get_dynamic_upstream_lua_srv_conf(cf);
+    ucscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_dynamic_upstream_lua_module);
     if (ucscf == NULL) {
         return NGX_CONF_ERROR;
     }
 
     value = cf->args->elts;
 
-    ucscf->conf->request_headers = ngx_pcalloc(cf->pool, cf->args->nelts * sizeof(ngx_header_t));
+    ucscf->conf->request_headers_count = cf->args->nelts - 1;
+    ucscf->conf->request_headers = ngx_pcalloc(cf->pool, ucscf->conf->request_headers_count * sizeof(ngx_pair_t));
+
     if (ucscf->conf->request_headers == NULL)
     {
         return NULL;
     }
-
-    ucscf->conf->request_headers_count = cf->args->nelts - 1;
 
     for (i = 1; i < cf->args->nelts; ++i)
     {
@@ -497,11 +434,7 @@ ngx_http_dynamic_upstream_lua_check_request_body(ngx_conf_t *cf, ngx_command_t *
 {
     ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf;
 
-    if (ngx_worker != 0) {
-        return NGX_CONF_OK;
-    }
-
-    ucscf = ngx_http_get_dynamic_upstream_lua_srv_conf(cf);
+    ucscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_dynamic_upstream_lua_module);
     if (ucscf == NULL) {
         return NGX_CONF_ERROR;
     }
@@ -519,24 +452,19 @@ ngx_http_dynamic_upstream_lua_check_response_codes(ngx_conf_t *cf, ngx_command_t
     ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf;
     ngx_uint_t                                i;
 
-    if (ngx_worker != 0) {
-        return NGX_CONF_OK;
-    }
-
-    ucscf = ngx_http_get_dynamic_upstream_lua_srv_conf(cf);
+    ucscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_dynamic_upstream_lua_module);
     if (ucscf == NULL) {
         return NGX_CONF_ERROR;
     }
     
     value = cf->args->elts;
 
-    ucscf->conf->response_codes = ngx_pcalloc(cf->pool, cf->args->nelts * sizeof(ngx_uint_t));
-    if (ucscf->conf->response_codes == NULL)
-    {
+    ucscf->conf->response_codes_count = cf->args->nelts - 1;
+    ucscf->conf->response_codes = ngx_pcalloc(cf->pool, ucscf->conf->response_codes_count * sizeof(ngx_uint_t));
+
+    if (ucscf->conf->response_codes == NULL) {
         return NULL;
     }
-
-    ucscf->conf->response_codes_count = cf->args->nelts - 1;
 
     for (i = 1; i < cf->args->nelts; ++i)
     {
@@ -561,12 +489,8 @@ static char *
 ngx_http_dynamic_upstream_lua_check_response_body(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf;
-
-    if (ngx_worker != 0) {
-        return NGX_CONF_OK;
-    }
  
-    ucscf = ngx_http_get_dynamic_upstream_lua_srv_conf(cf);
+    ucscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_dynamic_upstream_lua_module);
     if (ucscf == NULL) {
         return NGX_CONF_ERROR;
     }
