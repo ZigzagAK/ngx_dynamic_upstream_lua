@@ -90,3 +90,13 @@ ngx_shm_copy_uint_vec(ngx_slab_pool_t *shpool, ngx_uint_t *src, ngx_uint_t count
     }
     return codes;
 }
+
+
+void
+ngx_safe_slab_free(ngx_slab_pool_t *pool, void **p)
+{
+    if (*p) {
+        ngx_slab_free_locked(pool, *p);
+        *p = NULL;
+    }
+}

@@ -779,16 +779,6 @@ static ngx_str_t type_tcp = { .data = (u_char *) "tcp", .len = 3 };
 static ngx_str_t http_GET = { .data = (u_char *) "GET", .len = 3 };
 
 
-static void
-ngx_safe_slab_free(ngx_slab_pool_t *pool, void **p)
-{
-    if (*p) {
-        ngx_slab_free_locked(pool, *p);
-        *p = NULL;
-    }
-}
-
-
 static int
 ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
 {
