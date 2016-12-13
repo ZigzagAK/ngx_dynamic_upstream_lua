@@ -4,17 +4,14 @@
 #include "ngx_http_lua_api.h"
 
 
-#include "ngx_dynamic_upstream_lua.h"
 #include "ngx_dynamic_shm.h"
+#include "ngx_dynamic_upstream_lua.h"
+
 
 #include "../ngx_dynamic_upstream/src/ngx_dynamic_upstream_module.h"
 
 
 extern ngx_module_t ngx_http_dynamic_upstream_lua_module;
-
-
-extern ngx_str_t
-ngx_http_copy_string(ngx_slab_pool_t *shpool, ngx_str_t src);
 
 
 static int
@@ -330,17 +327,16 @@ static ngx_http_dynamic_upstream_lua_srv_conf_t *
 ngx_http_get_dynamic_upstream_lua_srv_conf(ngx_http_upstream_srv_conf_t *uscf)
 {
     ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf;
-    char                                      shm_zone_name[1024];
-
-    bzero(&shm_zone_name, sizeof(shm_zone_name));
+    ngx_str_t                                 shm_zone_name;
 
     ucscf = ngx_http_conf_upstream_srv_conf(uscf, ngx_http_dynamic_upstream_lua_module);
 
     if (ucscf->shm_zone == NULL) {
-        strcat(shm_zone_name, "ngx_http_dynamic_upstream_lua_module:");
-        strncat(shm_zone_name, (const char *) uscf->host.data, uscf->host.len);
-    
-        ucscf->shm_zone = ngx_shared_memory_find(ngx_cycle, (u_char *) shm_zone_name, &ngx_http_dynamic_upstream_lua_module);
+        shm_zone_name.data = alloca(1024);
+        shm_zone_name.len = strlen("ngx_http_dynamic_upstream_lua_module:") + ucscf->conf->upstream.len;
+        ngx_snprintf(shm_zone_name.data, shm_zone_name.len + 1, "ngx_http_dynamic_upstream_lua_module:%s\0", ucscf->conf->upstream.data);
+
+        ucscf->shm_zone = ngx_shared_memory_find(ngx_cycle, shm_zone_name, &ngx_http_dynamic_upstream_lua_module);
 
         if (ucscf->shm_zone == NULL) {
             return NULL;
@@ -801,7 +797,7 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
     ngx_dynamic_upstream_op_t                 op;
     int                                       top = lua_gettop(L);
     const char                               *error = "Unknown error", *s0, *s1;
-    ngx_header_t                             *header;
+    ngx_pair_t                             *header;
     ngx_array_t                              *headers;
     ngx_uint_t                               *code;
     ngx_array_t                              *codes;
@@ -877,22 +873,22 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
         lua_pop(L, 2);
 
         if (s0) {
-            ucscf->data->type = ngx_http_copy_string(ucscf->shpool, type_http);
+            ucscf->data->type = ngx_shm_copy_string(ucscf->shpool, type_http);
             s1 = strchr(s0, ' ');
             if (s1 != NULL) {
 //              GET /
                 s.data = (u_char *) s0; s.len = s1 - s0;
-                ucscf->data->request_method = ngx_http_copy_string(ucscf->shpool, s);
+                ucscf->data->request_method = ngx_shm_copy_string(ucscf->shpool, s);
                 s.data = (u_char *) ++s1; s.len = strlen(s1);
-                ucscf->data->request_uri = ngx_http_copy_string(ucscf->shpool, s);
+                ucscf->data->request_uri = ngx_shm_copy_string(ucscf->shpool, s);
             } else {
 //              /
-                ucscf->data->request_method = ngx_http_copy_string(ucscf->shpool, http_GET);
+                ucscf->data->request_method = ngx_shm_copy_string(ucscf->shpool, http_GET);
                 s.data = (u_char *) s0; s.len = strlen(s0);
-                ucscf->data->request_uri = ngx_http_copy_string(ucscf->shpool, s);
+                ucscf->data->request_uri = ngx_shm_copy_string(ucscf->shpool, s);
             }
         } else {
-            ucscf->data->type = ngx_http_copy_string(ucscf->shpool, type_tcp);
+            ucscf->data->type = ngx_shm_copy_string(ucscf->shpool, type_tcp);
         }
 
         lua_getfield(L, 3, "headers");
@@ -901,7 +897,7 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
             lua_pushvalue(L, -1);
             lua_pushnil(L);
 
-            headers = ngx_array_create(r->pool, 100, sizeof(ngx_header_t));
+            headers = ngx_array_create(r->pool, 100, sizeof(ngx_pair_t));
             if (headers == NULL)
             {
                 error = "Memory allocation error";
@@ -927,7 +923,7 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
 
             ucscf->data->request_headers_count = headers->nelts;
             ucscf->data->request_headers = ngx_slab_calloc_locked(ucscf->shpool,
-                                                                  ucscf->data->request_headers_count * sizeof(ngx_header_t));
+                                                                  ucscf->data->request_headers_count * sizeof(ngx_pair_t));
             if (ucscf->data->request_headers == NULL) {
                 ngx_array_destroy(headers);
                 error = "Memory allocation error";

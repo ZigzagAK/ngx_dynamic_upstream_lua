@@ -5,11 +5,7 @@
 #include <ngx_core.h>
 
 
-struct ngx_header_s {
-    ngx_str_t name;
-    ngx_str_t value;
-};
-typedef struct ngx_header_s ngx_header_t;
+#include "ngx_dynamic_shm.h"
 
 
 struct ngx_http_upstream_check_opts_s {
@@ -20,7 +16,7 @@ struct ngx_http_upstream_check_opts_s {
     ngx_msec_t       timeout; 
     ngx_str_t        request_uri;
     ngx_str_t        request_method;
-    ngx_header_t    *request_headers;
+    ngx_pair_t      *request_headers;
     ngx_uint_t       request_headers_count;
     ngx_str_t        request_body;
     ngx_uint_t      *response_codes;
