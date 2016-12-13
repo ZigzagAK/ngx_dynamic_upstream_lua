@@ -2,7 +2,8 @@
 
 ngx_addon_name=ngx_http_dynamic_upstream_lua_module
 HTTP_LUA_UPSTREAM_SRCS="$ngx_addon_dir/src/ngx_dynamic_upstream_lua.c \
-                        $ngx_addon_dir/src/ngx_dynamic_upstream_lua_module.c"
+                        $ngx_addon_dir/src/ngx_dynamic_upstream_lua_module.c \
+                        $ngx_addon_dir/src/ngx_dynamic_shm.c"
 
 
 if test -n "$ngx_module_link"; then

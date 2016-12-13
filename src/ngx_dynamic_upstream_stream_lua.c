@@ -298,11 +298,11 @@ ngx_stream_dynamic_upstream_lua_get_upstreams(lua_State * L)
 static void
 ngx_stream_dynamic_upstream_lua_push_healthcheck(lua_State *L, ngx_stream_upstream_srv_conf_t *us)
 {
-    ngx_stream_dynamic_upstream_lua_srv_conf_t *uduscf;
+    ngx_stream_dynamic_upstream_lua_srv_conf_t *ucscf;
 
-    uduscf = ngx_stream_conf_upstream_srv_conf(us, ngx_stream_dynamic_upstream_lua_module);
+    ucscf = ngx_stream_conf_upstream_srv_conf(us, ngx_stream_dynamic_upstream_lua_module);
 
-    if (uduscf == NULL || uduscf->initialized == 0) {
+    if (ucscf == NULL || ucscf->initialized == 0) {
         lua_pushliteral(L, "healthcheck");
         lua_pushnil(L);
         lua_rawset(L, -3);
@@ -313,15 +313,15 @@ ngx_stream_dynamic_upstream_lua_push_healthcheck(lua_State *L, ngx_stream_upstre
     lua_createtable(L, 0, 3);
 
     lua_pushliteral(L, "fall");
-    lua_pushinteger(L, (lua_Integer) uduscf->fall);
+    lua_pushinteger(L, (lua_Integer) ucscf->fall);
     lua_rawset(L, -3);
 
     lua_pushliteral(L, "rise");
-    lua_pushinteger(L, (lua_Integer) uduscf->rise);
+    lua_pushinteger(L, (lua_Integer) ucscf->rise);
     lua_rawset(L, -3);
 
     lua_pushliteral(L, "timeout");
-    lua_pushinteger(L, (lua_Integer) uduscf->timeout);
+    lua_pushinteger(L, (lua_Integer) ucscf->timeout);
     lua_rawset(L, -3);
 
     lua_rawset(L, -3);
