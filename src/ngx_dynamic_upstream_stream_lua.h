@@ -5,14 +5,20 @@
 #include <ngx_core.h>
 
 
-struct ngx_stream_dynamic_upstream_lua_srv_conf_s {
+struct ngx_stream_upstream_check_opts_s {
     ngx_str_t upstream;
-
     ngx_uint_t fall;
     ngx_uint_t rise;
     ngx_msec_t timeout;
+};
+typedef struct ngx_stream_upstream_check_opts_s ngx_stream_upstream_check_opts_t;
 
-    ngx_uint_t initialized;
+
+struct ngx_stream_dynamic_upstream_lua_srv_conf_s {
+    ngx_shm_zone_t                   *shm_zone;
+    ngx_slab_pool_t                  *shpool;
+    ngx_stream_upstream_check_opts_t *data;
+    ngx_stream_upstream_check_opts_t *conf;
 };
 typedef struct ngx_stream_dynamic_upstream_lua_srv_conf_s ngx_stream_dynamic_upstream_lua_srv_conf_t;
 

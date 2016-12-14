@@ -323,21 +323,21 @@ ngx_http_dynamic_upstream_lua_get_upstreams(lua_State * L)
 }
 
 
+extern ngx_str_t shared_zone_http_prefix;
+
+
 static ngx_http_dynamic_upstream_lua_srv_conf_t *
 ngx_http_get_dynamic_upstream_lua_srv_conf(ngx_http_upstream_srv_conf_t *uscf)
 {
     ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf;
-    ngx_str_t                                 shm_zone_name;
 
     ucscf = ngx_http_conf_upstream_srv_conf(uscf, ngx_http_dynamic_upstream_lua_module);
 
     if (ucscf->shm_zone == NULL) {
-        shm_zone_name.data = alloca(1024);
-        shm_zone_name.len = strlen("ngx_http_dynamic_upstream_lua_module:") + ucscf->conf->upstream.len;
-        ngx_snprintf(shm_zone_name.data, shm_zone_name.len + 1, "ngx_http_dynamic_upstream_lua_module:%s\0", ucscf->conf->upstream.data);
-
-        ucscf->shm_zone = ngx_shared_memory_find(ngx_cycle, shm_zone_name, &ngx_http_dynamic_upstream_lua_module);
-
+        ucscf->shm_zone = ngx_shared_memory_find(ngx_cycle,
+                                                 shared_zone_http_prefix,
+                                                 ucscf->conf->upstream,
+                                                 &ngx_http_dynamic_upstream_lua_module);
         if (ucscf->shm_zone == NULL) {
             return NULL;
         }
@@ -362,7 +362,7 @@ ngx_http_dynamic_upstream_lua_push_healthcheck(lua_State *L, ngx_http_upstream_s
     
     ucscf = ngx_http_get_dynamic_upstream_lua_srv_conf(uscf);
 
-    if (ucscf == NULL || ucscf->data->type.data == NULL) {
+    if (ucscf == NULL || ucscf->data == NULL || ucscf->data->type.data == NULL) {
         lua_pushliteral(L, "healthcheck");
         lua_pushnil(L);
         lua_rawset(L, -3);
@@ -787,7 +787,7 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
     ngx_dynamic_upstream_op_t                 op;
     int                                       top = lua_gettop(L);
     const char                               *error = "Unknown error", *s0, *s1;
-    ngx_pair_t                             *header;
+    ngx_pair_t                               *header;
     ngx_array_t                              *headers;
     ngx_uint_t                               *code;
     ngx_array_t                              *codes;
@@ -848,6 +848,18 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
     ucscf->data->fall = lua_tointeger(L, -3);
     ucscf->data->rise = lua_tointeger(L, -2);
     ucscf->data->timeout = lua_tointeger(L, -1);
+
+    if (ucscf->data->fall == 0) {
+        ucscf->data->fall = 1;
+    }
+
+    if (ucscf->data->rise == 0) {
+        ucscf->data->rise = 1;
+    }
+
+    if (ucscf->data->timeout == 0) {
+        ucscf->data->timeout = 1000;
+    }
 
     lua_pop(L, 3);
 

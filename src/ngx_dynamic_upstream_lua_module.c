@@ -242,19 +242,20 @@ ngx_http_init_shm_zone(ngx_shm_zone_t *shm_zone, void *data)
 }
 
 
+const ngx_str_t
+shared_zone_http_prefix = {
+    .data = (u_char *) "ngx_http_dynamic_upstream_lua_module",
+    .len = sizeof("ngx_http_dynamic_upstream_lua_module") - 1
+};
+
+
 static ngx_shm_zone_t *
 ngx_http_create_shm_zone(ngx_conf_t *cf,
                          ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf)
 {
-    ngx_shm_zone_t  *shm_zone;
-    ngx_str_t        shm_zone_name;
+    ngx_shm_zone_t *shm_zone;
 
-    shm_zone_name.len = strlen("ngx_http_dynamic_upstream_lua_module:") + ucscf->conf->upstream.len;
-    shm_zone_name.data = ngx_pcalloc(cf->pool, shm_zone_name.len);
-    ngx_snprintf(shm_zone_name.data, shm_zone_name.len + 1, "ngx_http_dynamic_upstream_lua_module:%s\0", ucscf->conf->upstream.data);
-
-    shm_zone = ngx_shared_memory_add(cf, &shm_zone_name, 2048000, &ngx_http_dynamic_upstream_lua_module);
-
+    shm_zone = ngx_shared_create_zone(cf, 2048000, shared_zone_http_prefix, ucscf->conf->upstream, &ngx_http_dynamic_upstream_lua_module);
     if (shm_zone == NULL) {
         return NULL;
     }
@@ -347,6 +348,18 @@ ngx_http_dynamic_upstream_lua_check(ngx_conf_t *cf, ngx_command_t *cmd, void *co
     if (ucscf->conf->type.data == NULL) {
         ucscf->conf->type.data = (u_char *) "tcp";
         ucscf->conf->type.len = 3;
+    }
+
+    if (ucscf->conf->fall == 0) {
+        ucscf->conf->fall = 1;
+    }
+
+    if (ucscf->conf->rise == 0) {
+        ucscf->conf->rise = 1;
+    }
+
+    if (ucscf->conf->timeout == 0) {
+        ucscf->conf->timeout = 1000;
     }
 
     return NGX_CONF_OK;
