@@ -13,7 +13,10 @@ typedef struct ngx_pair_s ngx_pair_t;
 
 
 ngx_shm_zone_t *
-ngx_shared_memory_find(volatile ngx_cycle_t *cycle, ngx_str_t name, void *tag);
+ngx_shared_create_zone(ngx_conf_t *cf, ngx_uint_t size, ngx_str_t prefix, ngx_str_t suffix, void *tag);
+
+ngx_shm_zone_t *
+ngx_shared_memory_find(volatile ngx_cycle_t *cycle, ngx_str_t prefix, ngx_str_t suffix, void *tag);
 
 
 ngx_str_t

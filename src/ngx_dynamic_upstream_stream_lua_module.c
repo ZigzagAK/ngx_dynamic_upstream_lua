@@ -8,6 +8,7 @@
 #include "ngx_stream_lua_api.h"
 #endif
 
+#include "ngx_dynamic_shm.h"
 #include "ngx_dynamic_upstream_stream_lua.h"
 
 
@@ -30,6 +31,10 @@ ngx_stream_dynamic_upstream_lua_init_srv_conf(ngx_conf_t *cf, void *conf);
 
 static char *
 ngx_stream_dynamic_upstream_lua_check(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+
+
+static ngx_shm_zone_t *
+ngx_stream_create_shm_zone(ngx_conf_t *cf, ngx_stream_dynamic_upstream_lua_srv_conf_t *ucscf);
 
 
 static ngx_command_t ngx_stream_dynamic_upstream_lua_commands[] = {
@@ -108,6 +113,94 @@ ngx_stream_dynamic_upstream_lua_init_main_conf(ngx_conf_t *cf, void *conf)
 }
 
 
+static char *
+ngx_stream_dynamic_upstream_lua_init_srv_conf(ngx_conf_t *cf, void *conf)
+{
+    ngx_stream_upstream_srv_conf_t             *uscf = conf;
+    ngx_stream_dynamic_upstream_lua_srv_conf_t *ucscf;
+
+    if (uscf->srv_conf == NULL) {
+        return NGX_CONF_OK;
+    }
+
+    ucscf = ngx_stream_conf_upstream_srv_conf(uscf, ngx_stream_dynamic_upstream_lua_module);
+    if (ucscf == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    ucscf->conf->upstream = uscf->host;
+    ucscf->shm_zone = ngx_stream_create_shm_zone(cf, ucscf);
+
+    if (ucscf->shm_zone == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    return NGX_CONF_OK;
+}
+
+
+static ngx_int_t
+ngx_stream_init_shm_zone(ngx_shm_zone_t *shm_zone, void *data)
+{
+    ngx_stream_dynamic_upstream_lua_srv_conf_t *ucscf = shm_zone->data;
+    ngx_int_t                                   rc = 1;
+
+    ucscf->shm_zone = shm_zone;
+    ucscf->shpool = (ngx_slab_pool_t *) shm_zone->shm.addr;
+
+    if (data) {
+        ucscf->data = data;
+        return NGX_OK;
+    }
+
+    ucscf->data = ngx_slab_calloc(ucscf->shpool, sizeof(ngx_stream_upstream_check_opts_t));
+    if (ucscf->data == NULL) {
+        return NGX_ERROR;
+    }
+
+    ucscf->data->fall     = ucscf->conf->fall;
+    ucscf->data->rise     = ucscf->conf->rise;
+    ucscf->data->timeout  = ucscf->conf->timeout;
+    ucscf->data->upstream = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->upstream);
+
+    rc = rc && (ucscf->data->upstream.data || NULL == ucscf->conf->upstream.data);
+
+    if (!rc) {
+        return NGX_ERROR;
+    }
+
+    shm_zone->data = ucscf->data;
+
+    return NGX_OK;
+}
+
+
+const ngx_str_t
+shared_zone_stream_prefix = {
+    .data = (u_char *) "ngx_stream_dynamic_upstream_lua_module",
+    .len = sizeof("ngx_stream_dynamic_upstream_lua_module") - 1
+};
+
+
+static ngx_shm_zone_t *
+ngx_stream_create_shm_zone(ngx_conf_t *cf,
+                           ngx_stream_dynamic_upstream_lua_srv_conf_t *ucscf)
+{
+    ngx_shm_zone_t *shm_zone;
+
+    shm_zone = ngx_shared_create_zone(cf, 2048000, shared_zone_stream_prefix, ucscf->conf->upstream, &ngx_stream_dynamic_upstream_lua_module);
+    if (shm_zone == NULL) {
+        return NULL;
+    }
+
+    shm_zone->init = ngx_stream_init_shm_zone;
+    shm_zone->noreuse = 1;
+    shm_zone->data = ucscf;
+
+    return shm_zone;
+}
+
+
 static void *
 ngx_stream_dynamic_upstream_lua_create_srv_conf(ngx_conf_t *cf)
 {
@@ -118,43 +211,16 @@ ngx_stream_dynamic_upstream_lua_create_srv_conf(ngx_conf_t *cf)
         return NULL;
     }
 
-    bzero(ucscf, sizeof(ngx_stream_dynamic_upstream_lua_srv_conf_t));
+    ucscf->conf = ngx_pcalloc(cf->pool, sizeof(ngx_stream_upstream_check_opts_t));
+    if (ucscf->conf == NULL) {
+        return NULL;
+    }
 
-    ucscf->fall    = NGX_CONF_UNSET_UINT;
-    ucscf->rise    = NGX_CONF_UNSET_UINT;
-    ucscf->timeout = NGX_CONF_UNSET_MSEC;
+    ucscf->conf->fall    = NGX_CONF_UNSET_UINT;
+    ucscf->conf->rise    = NGX_CONF_UNSET_UINT;
+    ucscf->conf->timeout = NGX_CONF_UNSET_MSEC;
 
     return ucscf;
-}
-
-
-static char *
-ngx_stream_dynamic_upstream_lua_init_srv_conf(ngx_conf_t *cf, void *conf)
-{
-    ngx_stream_upstream_srv_conf_t             *us = conf;
-    ngx_stream_dynamic_upstream_lua_srv_conf_t *ucscf;
-
-    if (us->srv_conf == NULL) {
-        return NGX_CONF_OK;
-    }
-
-    ucscf = ngx_stream_conf_upstream_srv_conf(us, ngx_stream_dynamic_upstream_lua_module);
-
-    if (ucscf->fall == NGX_CONF_UNSET_UINT) {
-        ucscf->fall = 2;
-    }
-
-    if (ucscf->rise == NGX_CONF_UNSET_UINT) {
-        ucscf->rise = 2;
-    }
-
-    if (ucscf->timeout == NGX_CONF_UNSET_MSEC) {
-        ucscf->timeout = 1000;
-    }
-
-    ucscf->upstream = us->host;
-
-    return NGX_CONF_OK;
 }
 
 
@@ -172,9 +238,9 @@ ngx_stream_dynamic_upstream_lua_check(ngx_conf_t *cf, ngx_command_t *cmd, void *
     for (i = 1; i < cf->args->nelts; ++i)
     {
         if (ngx_strncmp(value[i].data, "timeout=", 8) == 0) {
-            ucscf->timeout = ngx_atoi(value[i].data + 8, value[i].len - 8);
+            ucscf->conf->timeout = ngx_atoi(value[i].data + 8, value[i].len - 8);
 
-            if (ucscf->timeout == (ngx_msec_t) NGX_ERROR || ucscf->timeout == 0) {
+            if (ucscf->conf->timeout == (ngx_msec_t) NGX_ERROR || ucscf->conf->timeout == 0) {
                 goto invalid_check_parameter;
             }
 
@@ -182,9 +248,9 @@ ngx_stream_dynamic_upstream_lua_check(ngx_conf_t *cf, ngx_command_t *cmd, void *
         }
 
         if (ngx_strncmp(value[i].data, "rise=", 5) == 0) {
-            ucscf->rise = ngx_atoi(value[i].data + 5, value[i].len - 5);
+            ucscf->conf->rise = ngx_atoi(value[i].data + 5, value[i].len - 5);
 
-            if (ucscf->rise == (ngx_uint_t) NGX_ERROR || ucscf->rise == 0) {
+            if (ucscf->conf->rise == (ngx_uint_t) NGX_ERROR || ucscf->conf->rise == 0) {
                 goto invalid_check_parameter;
             }
 
@@ -192,17 +258,27 @@ ngx_stream_dynamic_upstream_lua_check(ngx_conf_t *cf, ngx_command_t *cmd, void *
         }
 
         if (ngx_strncmp(value[i].data, "fall=", 5) == 0) {
-            ucscf->fall = ngx_atoi(value[i].data + 5, value[i].len - 5);
+            ucscf->conf->fall = ngx_atoi(value[i].data + 5, value[i].len - 5);
 
-            if (ucscf->fall == (ngx_uint_t) NGX_ERROR || ucscf->fall == 0) {
+            if (ucscf->conf->fall == (ngx_uint_t) NGX_ERROR || ucscf->conf->fall == 0) {
                 goto invalid_check_parameter;
             }
 
             continue;
         }
     }
+    
+    if (ucscf->conf->fall == 0) {
+        ucscf->conf->fall = 1;
+    }
 
-    ucscf->initialized = 1;
+    if (ucscf->conf->rise == 0) {
+        ucscf->conf->rise = 1;
+    }
+
+    if (ucscf->conf->timeout == 0) {
+        ucscf->conf->timeout = 1000;
+    }
 
     return NGX_CONF_OK;
 

@@ -2,11 +2,38 @@
 
 
 ngx_shm_zone_t *
-ngx_shared_memory_find(volatile ngx_cycle_t *cycle, ngx_str_t name, void *tag)
+ngx_shared_create_zone(ngx_conf_t *cf, ngx_uint_t size, ngx_str_t prefix, ngx_str_t suffix, void *tag)
+{
+    ngx_shm_zone_t  *shm_zone;
+    ngx_str_t        shm_zone_name;
+
+    shm_zone_name.len = prefix.len + 1 + suffix.len;
+    shm_zone_name.data = ngx_pcalloc(cf->pool, shm_zone_name.len + 1);
+    ngx_snprintf(shm_zone_name.data, shm_zone_name.len + 1, "%s:%s\0", prefix.data, suffix.data);
+
+    shm_zone = ngx_shared_memory_add(cf, &shm_zone_name, size, tag);
+
+    if (shm_zone == NULL) {
+        return NULL;
+    }
+
+    return shm_zone;
+}
+
+
+ngx_shm_zone_t *
+ngx_shared_memory_find(volatile ngx_cycle_t *cycle, ngx_str_t prefix, ngx_str_t suffix, void *tag)
 {
     ngx_uint_t        i;
     ngx_shm_zone_t   *shm_zone;
     ngx_list_part_t  *part;
+    ngx_str_t         shm_zone_name;
+
+    shm_zone_name.len = prefix.len + 1 + suffix.len;
+    shm_zone_name.data = alloca(shm_zone_name.len + 1);
+    bzero(shm_zone_name.data, shm_zone_name.len + 1);
+    
+    ngx_snprintf(shm_zone_name.data, shm_zone_name.len + 1, "%s:%s\0", prefix.data, suffix.data);
 
     part = (ngx_list_part_t *) &(cycle->shared_memory.part);
     shm_zone = part->elts;
@@ -22,11 +49,11 @@ ngx_shared_memory_find(volatile ngx_cycle_t *cycle, ngx_str_t name, void *tag)
             i = 0;
         }
 
-        if (name.len != shm_zone[i].shm.name.len) {
+        if (shm_zone_name.len != shm_zone[i].shm.name.len) {
             continue;
         }
 
-        if (ngx_strncmp(name.data, shm_zone[i].shm.name.data, name.len) != 0)
+        if (ngx_strncmp(shm_zone_name.data, shm_zone[i].shm.name.data, shm_zone_name.len) != 0)
         {
             continue;
         }
