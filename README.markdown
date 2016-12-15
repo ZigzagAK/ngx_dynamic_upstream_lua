@@ -15,9 +15,17 @@ Table of Contents
 * [Synopsis](#synopsis)
 * [Description](#description)
 * [Install](#install)
+* [Configuration directives](#configuration-directives)
+    * [check](#check)
+    * [check_request_uri](#check_request_uri)
+    * [check_request_headers](#check_request_headers)
+    * [check_request_body](#check_request_body)
+    * [check_response_codes](#check_response_codes)
+    * [check_response_body](#check_response_body)
 * [Packages](#packages)
 * [Methods](#methods)
     * [get_upstreams](#get_upstreams)
+    * [get_healthcheck](#get_healthcheck)
     * [get_peers](#get_peers)
     * [get_primary_peers](#get_primary_peers)
     * [get_backup_peers](#get_backup_peers)
@@ -27,6 +35,7 @@ Table of Contents
     * [add_backup_peer](#add_backup_peer)
     * [remove_peer](#remove_peer)
     * [update_peer](#update_peer)
+    * [current_upstream](#current_upstream)
 * [Latest build](#latest-build)
 
 Dependencies
@@ -68,6 +77,61 @@ cd ngx_dynamic_upstream_lua
 ```
 
 Archive will be placed in the `install` folder after successful build.
+
+[Back to TOC](#table-of-contents)
+
+Configuration directives
+========================
+
+To use healthcheck parameters you need [nginx-resty-auto-healthcheck-config](https://github.com/ZigzagAK/nginx-resty-auto-healthcheck-config)
+
+check
+-----
+* **syntax**: `check fall=2 rise=2 timeout=1000 type=http|tcp`
+* **default**: `none`
+* **context**: `upstream`
+
+Configure healthcheck base parameters.
+
+check_request_uri
+-----------------
+* **syntax**: `check_request_uri GET|POST /ping`
+* **default**: `none`
+* **context**: `upstream`
+
+Configure http request for healthcheck.
+
+check_request_headers
+---------------------
+* **syntax**: `check_request_headers a=1 b=2`
+* **default**: `none`
+* **context**: `upstream`
+
+Configure http request headers for healthcheck.
+
+check_request_body
+------------------
+* **syntax**: `check_request_body hello`
+* **default**: `none`
+* **context**: `upstream`
+
+Configure http request body for healthcheck.
+
+check_response_codes
+--------------------
+* **syntax**: `check_response_codes 20 201 202`
+* **default**: `none`
+* **context**: `upstream`
+
+Configure http response codes for healthcheck.
+
+check_response_body
+-------------------
+* **syntax**: `check_response_body .*`
+* **default**: `none`
+* **context**: `upstream`
+
+Configure regular expression for http response body.
 
 [Back to TOC](#table-of-contents)
 
@@ -233,6 +297,17 @@ Get table of upstreams.
 Returns true and lua table on success, or false and a string describing an error otherwise.
 
 
+get_healthcheck
+---------------
+**syntax:** `ok, healthcheck, error = dynamic_upstream.get_healthcheck()`
+
+**context:** *&#42;_by_lua&#42;*
+
+Get healthcheck parameters.
+
+Returns true and lua table on success, or false and a string describing an error otherwise.
+
+
 get_peers
 -------------
 **syntax:** `ok, servers, error = dynamic_upstream.get_peers(upstream)`
@@ -322,7 +397,7 @@ Returns true on success, or false and a string describing an error otherwise.
 
 
 update_peer
--------------
+-----------
 **syntax:** `ok, _, error = dynamic_upstream.update_peer(upstream, peer, {
               weight = N,
               max_fails = N,
@@ -336,6 +411,15 @@ update_peer
 Update `peer` attributes.
 
 Returns true on success, or false and a string describing an error otherwise.
+
+
+current_upstream
+----------------
+**syntax:** `ok, _, error = dynamic_upstream.current_upstream()`
+
+**context:** *&#42;_by_lua&#42;*
+
+Returns true and current upstream name on success, or false and a string describing an error otherwise.
 
 [Back to TOC](#table-of-contents)
 
