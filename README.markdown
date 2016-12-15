@@ -119,7 +119,7 @@ Configure http request body for healthcheck.
 
 check_response_codes
 --------------------
-* **syntax**: `check_response_codes 20 201 202`
+* **syntax**: `check_response_codes 200 201 202`
 * **default**: `none`
 * **context**: `upstream`
 
