@@ -91,7 +91,7 @@ ngx_module_t ngx_stream_dynamic_upstream_lua_module = {
 
 
 static ngx_stream_filter_pt
-ngx_stream_write_filter;
+ngx_stream_next_filter;
 
 
 static ngx_uint_t
@@ -161,8 +161,8 @@ ngx_stream_dynamic_upstream_write_filter(ngx_stream_session_t *s, ngx_chain_t *i
 
 skip:
 
-    if (ngx_stream_write_filter) {
-        return (*ngx_stream_write_filter)(s, in, from_upstream);
+    if (ngx_stream_next_filter) {
+        return ngx_stream_next_filter(s, in, from_upstream);
     }
   
     return NGX_OK; 
@@ -181,7 +181,7 @@ ngx_stream_dynamic_upstream_lua_post_conf(ngx_conf_t *cf)
     }
 #endif
 
-    ngx_stream_write_filter = ngx_stream_top_filter;
+    ngx_stream_next_filter = ngx_stream_top_filter;
     ngx_stream_top_filter = ngx_stream_dynamic_upstream_write_filter;
 
     return NGX_OK;
