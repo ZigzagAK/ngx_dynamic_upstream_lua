@@ -22,7 +22,7 @@ Table of Contents
     * [check_request_body](#check_request_body)
     * [check_response_codes](#check_response_codes)
     * [check_response_body](#check_response_body)
-    * [check_response_body](#disconnect_backup_if_primary_up)
+    * [disconnect_backup_if_primary_up](#disconnect_backup_if_primary_up)
 * [Packages](#packages)
 * [Methods](#methods)
     * [get_upstreams](#get_upstreams)
