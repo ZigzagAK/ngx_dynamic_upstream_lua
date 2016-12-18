@@ -135,6 +135,11 @@ ngx_stream_dynamic_upstream_write_filter(ngx_stream_session_t *s, ngx_chain_t *i
         goto skip;
     }
 
+    ucscf = ngx_stream_conf_upstream_srv_conf(uscf, ngx_stream_dynamic_upstream_lua_module);
+    if (ucscf == NULL || ucscf->disconnect_backup == 0) {
+        goto skip;
+    }
+
     peer_data = (ngx_stream_upstream_rr_peer_data_t*) s->upstream->peer.data;
     if (peer_data == NULL) {
         goto skip;
@@ -142,11 +147,6 @@ ngx_stream_dynamic_upstream_write_filter(ngx_stream_session_t *s, ngx_chain_t *i
 
     current = peer_data->current;
     if (current == NULL) {
-        goto skip;
-    }
-
-    ucscf = ngx_stream_conf_upstream_srv_conf(uscf, ngx_stream_dynamic_upstream_lua_module);
-    if (ucscf == NULL || ucscf->disconnect_backup == 0) {
         goto skip;
     }
 
