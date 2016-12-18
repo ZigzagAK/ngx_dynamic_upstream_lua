@@ -159,6 +159,9 @@ ngx_dynamic_upstream_lua_create_response(ngx_http_upstream_rr_peers_t *primary, 
 
     backup = primary->next;
 
+    ngx_http_upstream_rr_peers_wlock(primary);
+    ngx_http_upstream_rr_peers_wlock(backup);
+
     if (flags & PRIMARY) {
         size += primary->number;
     }
@@ -219,6 +222,9 @@ ngx_dynamic_upstream_lua_create_response(ngx_http_upstream_rr_peers_t *primary, 
             }
         }
     }
+
+    ngx_http_upstream_rr_peers_unlock(backup);
+    ngx_http_upstream_rr_peers_unlock(primary);
 }
 
 

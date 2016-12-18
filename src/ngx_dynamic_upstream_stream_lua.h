@@ -3,6 +3,7 @@
 
 
 #include <ngx_core.h>
+#include <ngx_stream.h>
 
 
 struct ngx_stream_upstream_check_opts_s {
@@ -19,6 +20,7 @@ struct ngx_stream_dynamic_upstream_lua_srv_conf_s {
     ngx_slab_pool_t                  *shpool;
     ngx_stream_upstream_check_opts_t *data;
     ngx_stream_upstream_check_opts_t *conf;
+    ngx_uint_t                        disconnect_backup;
 };
 typedef struct ngx_stream_dynamic_upstream_lua_srv_conf_s ngx_stream_dynamic_upstream_lua_srv_conf_t;
 
