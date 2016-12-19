@@ -21,6 +21,7 @@ struct ngx_stream_dynamic_upstream_lua_srv_conf_s {
     ngx_stream_upstream_check_opts_t *data;
     ngx_stream_upstream_check_opts_t *conf;
     ngx_uint_t                        disconnect_backup;
+    ngx_uint_t                        disconnect_on_exiting;
 };
 typedef struct ngx_stream_dynamic_upstream_lua_srv_conf_s ngx_stream_dynamic_upstream_lua_srv_conf_t;
 

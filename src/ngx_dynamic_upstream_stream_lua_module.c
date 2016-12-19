@@ -33,6 +33,8 @@ static char *
 ngx_stream_dynamic_upstream_lua_check(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *
 ngx_stream_dynamic_upstream_lua_disconnect_backup_if_primary_up(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *
+ngx_stream_dynamic_upstream_lua_disconnect_on_exiting(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
 
 static ngx_shm_zone_t *
@@ -55,6 +57,13 @@ static ngx_command_t ngx_stream_dynamic_upstream_lua_commands[] = {
     { ngx_string("disconnect_backup_if_primary_up"),
       NGX_STREAM_UPS_CONF|NGX_CONF_NOARGS,
       ngx_stream_dynamic_upstream_lua_disconnect_backup_if_primary_up,
+      0,
+      0,
+      NULL },
+
+    { ngx_string("disconnect_on_exiting"),
+      NGX_STREAM_UPS_CONF|NGX_CONF_NOARGS,
+      ngx_stream_dynamic_upstream_lua_disconnect_on_exiting,
       0,
       0,
       NULL },
@@ -150,10 +159,17 @@ ngx_stream_dynamic_upstream_write_filter(ngx_stream_session_t *s, ngx_chain_t *i
         goto skip;
     }
 
+    p = alloca(current->name.len + 1);
+    ngx_memcpy(p, current->name.data, current->name.len);
+    p[current->name.len] = 0;
+
+    if (ngx_exiting && ucscf->disconnect_on_exiting) {
+        ngx_log_error(NGX_LOG_WARN, ngx_cycle->log, 0,
+                      "[disconnect_on_exiting] disconnect from peer=%s upstream=%s", p, uscf->host.data);
+        return NGX_ERROR;
+    }
+
     if (ngx_stream_dynamic_upstream_alive_primary(uscf->peer.data, current)) {
-        p = alloca(current->name.len + 1);
-        ngx_memcpy(p, current->name.data, current->name.len);
-        p[current->name.len] = 0;
         ngx_log_error(NGX_LOG_WARN, ngx_cycle->log, 0,
                       "[disconnect_backup_if_primary_up] disconnect from peer=%s upstream=%s", p, uscf->host.data);
         return NGX_ERROR;
@@ -392,5 +408,15 @@ ngx_stream_dynamic_upstream_lua_disconnect_backup_if_primary_up(ngx_conf_t *cf, 
     ngx_stream_dynamic_upstream_lua_srv_conf_t *ucscf;
     ucscf = ngx_stream_conf_get_module_srv_conf(cf, ngx_stream_dynamic_upstream_lua_module);
     ucscf->disconnect_backup = 1;
+    return NGX_CONF_OK;
+}
+
+
+static char *
+ngx_stream_dynamic_upstream_lua_disconnect_on_exiting(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_stream_dynamic_upstream_lua_srv_conf_t *ucscf;
+    ucscf = ngx_stream_conf_get_module_srv_conf(cf, ngx_stream_dynamic_upstream_lua_module);
+    ucscf->disconnect_on_exiting = 1;
     return NGX_CONF_OK;
 }
