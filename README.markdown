@@ -44,7 +44,6 @@ Dependencies
 
 This module has several dependencies:
 * [dynamic-upstream-module](https://github.com/ZigzagAK/ngx_dynamic_upstream)
-* [dynamic-upstream-lua-module](https://github.com/ZigzagAK/ngx_dynamic_upstream_lua)
 
 Status
 ======
