@@ -23,6 +23,7 @@ Table of Contents
     * [check_response_codes](#check_response_codes)
     * [check_response_body](#check_response_body)
     * [disconnect_backup_if_primary_up](#disconnect_backup_if_primary_up)
+    * [disconnect_on_exiting](#disconnect_on_exiting)
 * [Packages](#packages)
 * [Methods](#methods)
     * [get_upstreams](#get_upstreams)
@@ -141,6 +142,14 @@ disconnect_backup_if_primary_up
 * **context**: `stream/upstream`
 
 Disconnect from backup peers when primary peers becomes available.
+
+disconnect_on_exiting
+---------------------
+* **syntax**: `disconnect_on_exiting`
+* **default**: `none`
+* **context**: `stream/upstream`
+
+Disconnect from upstream when nginx reloaded.
 
 [Back to TOC](#table-of-contents)
 
