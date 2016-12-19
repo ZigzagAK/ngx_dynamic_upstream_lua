@@ -139,7 +139,7 @@ disconnect_backup_if_primary_up
 -------------------------------
 * **syntax**: `disconnect_backup_if_primary_up`
 * **default**: `none`
-* **context**: `upstream`
+* **context**: `stream/upstream`
 
 Disconnect from backup peers when primary peers becomes available.
 
