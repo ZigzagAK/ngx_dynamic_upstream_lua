@@ -422,7 +422,11 @@ ngx_stream_dynamic_upstream_lua_get_healthcheck(lua_State * L)
         lua_pushlstring(L, (char *) uscf->host.data, uscf->host.len);
         lua_rawset(L, -3);
 
-        ngx_stream_dynamic_upstream_lua_push_healthcheck(L, uscf);
+        if (uscf->srv_conf != NULL) {
+            ngx_stream_dynamic_upstream_lua_push_healthcheck(L, uscf);
+        } else {
+            lua_pushnil(L);
+        }
 
         lua_rawseti(L, -2, i + 1);
     }
