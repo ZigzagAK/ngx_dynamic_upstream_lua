@@ -312,10 +312,10 @@ ngx_http_dynamic_upstream_lua_get_upstreams(lua_State * L)
     lua_pushboolean(L, 1);
 
     for (i = 0; i < umcf->upstreams.nelts; i++) {
-      uscf = uscfp[i];
-      if (uscf->srv_conf != NULL) {
-          ++count;
-      }
+        uscf = uscfp[i];
+        if (uscf->srv_conf != NULL) {
+            ++count;
+        }
     }
 
     lua_newtable(L);
@@ -516,10 +516,10 @@ ngx_http_dynamic_upstream_lua_get_healthcheck(lua_State * L)
     lua_pushboolean(L, 1);
 
     for (i = 0; i < umcf->upstreams.nelts; i++) {
-      uscf = uscfp[i];
-      if (uscf->srv_conf != NULL) {
-          ++count;
-      }
+        uscf = uscfp[i];
+        if (uscf->srv_conf != NULL) {
+            ++count;
+        }
     }
 
     lua_newtable(L);
