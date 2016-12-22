@@ -402,7 +402,7 @@ ngx_stream_dynamic_upstream_lua_get_healthcheck(lua_State * L)
         return ngx_stream_dynamic_upstream_lua_error(L, "no argument expected");
     }
 
-    umcf = ngx_stream_lua_upstream_get_upstream_main_conf(L);
+    umcf = ngx_stream_lua_upstream_get_upstream_main_conf();
     uscfp = umcf->upstreams.elts;
 
     lua_pushboolean(L, 1);
@@ -410,7 +410,7 @@ ngx_stream_dynamic_upstream_lua_get_healthcheck(lua_State * L)
     lua_newtable(L);
     lua_createtable(L, umcf->upstreams.nelts, 0);
 
-    umcf  = ngx_stream_lua_upstream_get_upstream_main_conf(L);
+    umcf  = ngx_stream_lua_upstream_get_upstream_main_conf();
     uscfp = umcf->upstreams.elts;
 
     for (i = 0; i < umcf->upstreams.nelts; i++) {
