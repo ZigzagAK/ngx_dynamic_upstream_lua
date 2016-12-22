@@ -270,7 +270,7 @@ ngx_stream_dynamic_upstream_lua_op(lua_State * L, ngx_dynamic_upstream_op_t *op,
 static int
 ngx_stream_dynamic_upstream_lua_get_upstreams(lua_State * L)
 {
-    ngx_uint_t                       i;
+    ngx_uint_t                       i, count = 0;
     ngx_stream_upstream_srv_conf_t **uscfp, *uscf;
     ngx_stream_upstream_main_conf_t *umcf;
 
@@ -283,16 +283,25 @@ ngx_stream_dynamic_upstream_lua_get_upstreams(lua_State * L)
 
     lua_pushboolean(L, 1);
 
+    for (i = 0; i < umcf->upstreams.nelts; i++) {
+      uscf = uscfp[i];
+      if (uscf->srv_conf != NULL) {
+          ++count;
+      }
+    }
+
     lua_newtable(L);
-    lua_createtable(L, umcf->upstreams.nelts, 0);
+    lua_createtable(L, count, 0);
 
     umcf  = ngx_stream_lua_upstream_get_upstream_main_conf();
     uscfp = umcf->upstreams.elts;
 
     for (i = 0; i < umcf->upstreams.nelts; i++) {
         uscf = uscfp[i];
-        lua_pushlstring(L, (char *) uscf->host.data, uscf->host.len);
-        lua_rawseti(L, -2, i + 1);
+        if (uscf->srv_conf != NULL) {
+            lua_pushlstring(L, (char *) uscf->host.data, uscf->host.len);
+            lua_rawseti(L, -2, i + 1);
+        }
     }
 
     lua_pushnil(L);
@@ -394,7 +403,7 @@ empty:
 static int
 ngx_stream_dynamic_upstream_lua_get_healthcheck(lua_State * L)
 {
-    ngx_uint_t                    i;
+    ngx_uint_t                    i, count = 0;
     ngx_stream_upstream_srv_conf_t  **uscfp, *uscf;
     ngx_stream_upstream_main_conf_t *umcf;
 
@@ -407,8 +416,15 @@ ngx_stream_dynamic_upstream_lua_get_healthcheck(lua_State * L)
 
     lua_pushboolean(L, 1);
 
+    for (i = 0; i < umcf->upstreams.nelts; i++) {
+      uscf = uscfp[i];
+      if (uscf->srv_conf != NULL) {
+          ++count;
+      }
+    }
+
     lua_newtable(L);
-    lua_createtable(L, umcf->upstreams.nelts, 0);
+    lua_createtable(L, count, 0);
 
     umcf  = ngx_stream_lua_upstream_get_upstream_main_conf();
     uscfp = umcf->upstreams.elts;
@@ -416,19 +432,17 @@ ngx_stream_dynamic_upstream_lua_get_healthcheck(lua_State * L)
     for (i = 0; i < umcf->upstreams.nelts; i++) {
         uscf = uscfp[i];
 
-        lua_createtable(L, 0, 2);
-
-        lua_pushliteral(L, "name");
-        lua_pushlstring(L, (char *) uscf->host.data, uscf->host.len);
-        lua_rawset(L, -3);
-
         if (uscf->srv_conf != NULL) {
-            ngx_stream_dynamic_upstream_lua_push_healthcheck(L, uscf);
-        } else {
-            lua_pushnil(L);
-        }
+            lua_createtable(L, 0, 2);
 
-        lua_rawseti(L, -2, i + 1);
+            lua_pushliteral(L, "name");
+            lua_pushlstring(L, (char *) uscf->host.data, uscf->host.len);
+            lua_rawset(L, -3);
+
+            ngx_stream_dynamic_upstream_lua_push_healthcheck(L, uscf);
+
+            lua_rawseti(L, -2, i + 1);
+        }
     }
 
     lua_pushnil(L);
