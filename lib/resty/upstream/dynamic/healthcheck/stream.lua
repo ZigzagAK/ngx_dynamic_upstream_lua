@@ -1,5 +1,5 @@
 local _M = {
-    _VERSION = '0.99.1'
+    _VERSION = '1.0.0'
 }
 
 local common = require "resty.upstream.dynamic.healthcheck.common"
