@@ -41,7 +41,7 @@ __DATA__
                for _,c in ipairs(u.healthcheck.command.expected.codes)
                do
                  ngx.say(c)
-               end               
+               end
             end
         }
     }
@@ -62,6 +62,8 @@ bbb=444
         zone shm-backends 128k;
         server 127.0.0.1:6001;
         check fall=2 rise=1 timeout=1500;
+        check_request_body "ping";
+        check_response_body "pong";
     }
 --- stream_server_config
     proxy_pass backends;
@@ -76,11 +78,11 @@ bbb=444
             end
             for _, u in ipairs(upstreams)
             do
-               ngx.say(string.format("%s %d %d %d", u.name, u.healthcheck.fall, u.healthcheck.rise, u.healthcheck.timeout))
+               ngx.say(string.format("%s %d %d %d %s %s", u.name, u.healthcheck.fall, u.healthcheck.rise, u.healthcheck.timeout, u.healthcheck.command.body, u.healthcheck.command.expected.body))
             end
         }
     }
 --- request
     GET /test
 --- response_body
-backends 2 1 1500
+backends 2 1 1500 ping pong

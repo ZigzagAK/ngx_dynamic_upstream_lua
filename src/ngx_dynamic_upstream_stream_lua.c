@@ -136,6 +136,11 @@ ngx_dynamic_upstream_lua_create_response(ngx_stream_upstream_rr_peers_t *primary
 
     backup = primary->next;
 
+    ngx_stream_upstream_rr_peers_wlock(primary);
+    if (backup) {
+        ngx_stream_upstream_rr_peers_wlock(backup);
+    }
+
     if (flags & PRIMARY) {
         size += primary->number;
     }
@@ -196,6 +201,11 @@ ngx_dynamic_upstream_lua_create_response(ngx_stream_upstream_rr_peers_t *primary
             }
         }
     }
+
+    if (backup) {
+        ngx_stream_upstream_rr_peers_unlock(backup);
+    }
+    ngx_stream_upstream_rr_peers_unlock(primary);
 }
 
 
@@ -381,6 +391,38 @@ ngx_stream_dynamic_upstream_lua_push_healthcheck(lua_State *L, ngx_stream_upstre
     if (ucscf->data->timeout != NGX_CONF_UNSET_MSEC) {
         lua_pushliteral(L, "timeout");
         lua_pushinteger(L, (lua_Integer) ucscf->data->timeout);
+        lua_rawset(L, -3);
+    }
+
+    if (ucscf->data->request_body.len != 0) {
+        n = 1;
+
+        if (ucscf->data->response_body.len != 0) {
+          ++n;
+        }
+  
+        lua_pushliteral(L, "command");
+        lua_createtable(L, 0, n);
+
+        {
+            lua_pushliteral(L, "body");
+            lua_pushlstring(L, (char *) ucscf->data->request_body.data,
+                                        ucscf->data->request_body.len);
+            lua_rawset(L, -3);
+
+            if (ucscf->data->response_body.len != 0) {
+                lua_pushliteral(L, "expected");
+                lua_createtable(L, 0, 1);
+
+                lua_pushliteral(L, "body");
+                lua_pushlstring(L, (char *) ucscf->data->response_body.data,
+                                            ucscf->data->response_body.len);
+                lua_rawset(L, -3);
+
+                lua_rawset(L, -3);
+            }
+        }
+
         lua_rawset(L, -3);
     }
 
@@ -640,6 +682,26 @@ ngx_stream_dynamic_upstream_lua_update_peer(lua_State * L)
     return ngx_stream_dynamic_upstream_lua_op(L, &op, 0);
 }
 
+
+static ngx_str_t
+lua_get_string(lua_State *L, ngx_slab_pool_t *shpool, int index)
+{
+    ngx_str_t r = { .data = NULL, .len = 0 };
+    const char *s;
+    s = lua_tostring(L, index);
+    if (s != NULL) {
+        r.len = strlen(s);
+        r.data = ngx_slab_calloc_locked(shpool, r.len);
+        if (r.data != NULL) {
+            ngx_memcpy(r.data, s, r.len);
+        } else {
+            r.len = 0;
+        }
+    }
+    return r;
+}
+
+
 static int
 ngx_stream_dynamic_upstream_lua_update_healthcheck(lua_State *L)
 {
@@ -665,6 +727,7 @@ ngx_stream_dynamic_upstream_lua_update_healthcheck(lua_State *L)
 
     ngx_shmtx_lock(&ucscf->shpool->mutex);
 
+
     if (ucscf->data == NULL) {
         ucscf->data = ngx_slab_calloc(ucscf->shpool, sizeof(ngx_stream_upstream_check_opts_t));
         if (ucscf->data == NULL) {
@@ -672,6 +735,9 @@ ngx_stream_dynamic_upstream_lua_update_healthcheck(lua_State *L)
             goto error;
         }
     }
+
+    ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->request_body.data);
+    ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->response_body.data);
 
     lua_getfield(L, 2, "fall");
     lua_getfield(L, 2, "rise");
@@ -694,6 +760,28 @@ ngx_stream_dynamic_upstream_lua_update_healthcheck(lua_State *L)
     if (ucscf->data->timeout == 0) {
         ucscf->data->timeout = NGX_CONF_UNSET_MSEC;
     }
+
+    lua_getfield(L, 2, "command");
+
+    if (lua_istable(L, 3)) {
+        lua_getfield(L, 3, "body");
+
+        ucscf->data->request_body = lua_get_string(L, ucscf->shpool, -1);
+
+        lua_pop(L, 1);
+
+        lua_getfield(L, 3, "expected");
+
+        if (lua_istable(L, 4)) {
+            lua_getfield(L, 4, "body");
+            ucscf->data->response_body = lua_get_string(L, ucscf->shpool, -1);
+            lua_pop(L, 1);
+        }
+
+        lua_pop(L, 1);
+    }
+
+    lua_pop(L, 1);
 
     ngx_shmtx_unlock(&ucscf->shpool->mutex);
 

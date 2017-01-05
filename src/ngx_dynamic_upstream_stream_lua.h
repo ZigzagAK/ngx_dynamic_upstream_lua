@@ -7,10 +7,12 @@
 
 
 struct ngx_stream_upstream_check_opts_s {
-    ngx_str_t upstream;
-    ngx_uint_t fall;
-    ngx_uint_t rise;
-    ngx_msec_t timeout;
+    ngx_str_t    upstream;
+    ngx_uint_t   fall;
+    ngx_uint_t   rise;
+    ngx_msec_t   timeout;
+    ngx_str_t    request_body;
+    ngx_str_t    response_body;
 };
 typedef struct ngx_stream_upstream_check_opts_s ngx_stream_upstream_check_opts_t;
 
@@ -21,6 +23,7 @@ struct ngx_stream_dynamic_upstream_lua_srv_conf_s {
     ngx_stream_upstream_check_opts_t *data;
     ngx_stream_upstream_check_opts_t *conf;
     ngx_uint_t                        disconnect_backup;
+    ngx_uint_t                        disconnect_down;
     ngx_uint_t                        disconnect_on_exiting;
 };
 typedef struct ngx_stream_dynamic_upstream_lua_srv_conf_s ngx_stream_dynamic_upstream_lua_srv_conf_t;

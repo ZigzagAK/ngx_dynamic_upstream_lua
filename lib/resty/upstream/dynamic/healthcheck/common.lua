@@ -1,5 +1,5 @@
 local _M = {
-  _VERSION = '1.0.0'
+  _VERSION = '1.1.0'
 }
 
 --- Pre checks --------------------------------------------------------------------------------
@@ -162,6 +162,33 @@ local function check_tcp(ctx, peer)
       errlog("failed to connect to ", peer.name, ": ", err)
     end
   else
+    if peer.upstream.healthcheck.command then
+      _, err = sock:send(peer.upstream.healthcheck.command.body)
+      local expected = peer.upstream.healthcheck.command.expected or {}
+      if not err and expected.body then
+        local data = ""
+        while true
+        do
+          local part
+          part, err, _ = sock:receive("*l")
+          if part then
+            data = data .. "\r\n" .. part
+            if ngx.re.match(data, expected.body) then
+              break
+            end
+          else
+            err = "pattern is not found"
+            break
+          end
+        end
+      end
+      if err then
+        ok = nil
+        if not peer.down then
+          errlog("failed to check ", peer.name, ": ", err)
+        end
+      end
+    end
     sock:close()
   end
 
@@ -181,7 +208,7 @@ local function check_peer(ctx, peer)
   local httpc = http.new()
 
   httpc:set_timeout(peer.upstream.healthcheck.timeout)
-  
+
   local response
   response, err = httpc:request_uri("http://" .. peer.name .. peer.upstream.healthcheck.command.uri, peer.upstream.healthcheck.command)
 
@@ -209,7 +236,7 @@ local function check_peer(ctx, peer)
       debug("Checking ", ctx.upstream_type, " peer ", peer.name, " : http status=", status, " is not in the valid statuses list")
       return false
     end
-    
+
     if peer.upstream.healthcheck.command.expected.codes then
       ok = check_status(peer.upstream.healthcheck.command.expected.codes, response.status)
     end
@@ -306,7 +333,7 @@ check = function (premature, ctx)
   end
 
   local ok, err
-  
+
   ok, err = pcall(do_check, ctx)
   if not ok then
     errlog("failed to run healthcheck cycle: ", err)
