@@ -1,0 +1,11 @@
+1.1.0
+
+  03.01.2017
+
+  1) Fix: crash on try to get information from the upstream without backups peers.
+  2) New: check_request_body, check_response_body to stream upstreams.
+  3) New: disconnect_if_market_down stream upstream directive.
+
+1.0.0
+
+  Initial release

@@ -23,6 +23,7 @@ Table of Contents
     * [check_response_codes](#check_response_codes)
     * [check_response_body](#check_response_body)
     * [disconnect_backup_if_primary_up](#disconnect_backup_if_primary_up)
+    * [disconnect_if_market_down](#disconnect_if_market_down)
     * [disconnect_on_exiting](#disconnect_on_exiting)
 * [Packages](#packages)
 * [Methods](#methods)
@@ -142,6 +143,14 @@ disconnect_backup_if_primary_up
 * **context**: `stream/upstream`
 
 Disconnect from backup peers when primary peers becomes available.
+
+disconnect_if_market_down
+-------------------------
+* **syntax**: `disconnect_if_market_down`
+* **default**: `none`
+* **context**: `stream/upstream`
+
+Disconnect peers when server is market down by healthcheck.
 
 disconnect_on_exiting
 ---------------------
