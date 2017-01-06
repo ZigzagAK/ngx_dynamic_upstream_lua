@@ -172,8 +172,8 @@ local function check_tcp(ctx, peer)
           local part
           part, err, _ = sock:receive("*l")
           if part then
-            data = data .. "\r\n" .. part
-            if ngx.re.match(data, expected.body) then
+            data = data .. part
+            if ngx.re.match(data, expected.body, "mx") then
               break
             end
           else
@@ -333,7 +333,7 @@ check = function (premature, ctx)
   end
 
   local ok, err
-
+  
   ok, err = pcall(do_check, ctx)
   if not ok then
     errlog("failed to run healthcheck cycle: ", err)
