@@ -65,7 +65,7 @@ Install
 Build nginx.
 All dependencies are downloaded automaticaly.
 
-Pre requirenments (for example centos/redhat)
+Pre requirements (for example centos/redhat)
 
 ```
 sudo yum gcc-c++.x86_64 zlib-devel openssl-devel
