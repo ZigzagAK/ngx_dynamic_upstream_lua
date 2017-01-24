@@ -302,7 +302,7 @@ ngx_http_dynamic_upstream_lua_op(lua_State * L, ngx_dynamic_upstream_op_t *op, i
 static int
 ngx_http_dynamic_upstream_lua_get_upstreams(lua_State * L)
 {
-    ngx_uint_t                    i, count = 0;
+    ngx_uint_t                    i, j, count = 0;
     ngx_http_upstream_srv_conf_t  **uscfp, *uscf;
     ngx_http_upstream_main_conf_t *umcf;
 
@@ -328,11 +328,11 @@ ngx_http_dynamic_upstream_lua_get_upstreams(lua_State * L)
     umcf  = ngx_http_lua_upstream_get_upstream_main_conf(L);
     uscfp = umcf->upstreams.elts;
 
-    for (i = 0; i < umcf->upstreams.nelts; i++) {
+    for (i = 0, j = 1; i < umcf->upstreams.nelts; i++) {
         uscf = uscfp[i];
         if (uscf->srv_conf != NULL) {
             lua_pushlstring(L, (char *) uscf->host.data, uscf->host.len);
-            lua_rawseti(L, -2, i + 1);
+            lua_rawseti(L, -2, j++);
         }
     }
 
@@ -506,7 +506,7 @@ ngx_http_dynamic_upstream_lua_push_healthcheck(lua_State *L, ngx_http_upstream_s
 static int
 ngx_http_dynamic_upstream_lua_get_healthcheck(lua_State * L)
 {
-    ngx_uint_t                    i, count = 0;
+    ngx_uint_t                    i, j, count = 0;
     ngx_http_upstream_srv_conf_t  **uscfp, *uscf;
     ngx_http_upstream_main_conf_t *umcf;
 
@@ -532,7 +532,7 @@ ngx_http_dynamic_upstream_lua_get_healthcheck(lua_State * L)
     umcf  = ngx_http_lua_upstream_get_upstream_main_conf(L);
     uscfp = umcf->upstreams.elts;
 
-    for (i = 0; i < umcf->upstreams.nelts; i++) {
+    for (i = 0, j = 1; i < umcf->upstreams.nelts; i++) {
         uscf = uscfp[i];
 
         if (uscf->srv_conf != NULL) {
@@ -544,7 +544,7 @@ ngx_http_dynamic_upstream_lua_get_healthcheck(lua_State * L)
 
             ngx_http_dynamic_upstream_lua_push_healthcheck(L, uscf);
 
-            lua_rawseti(L, -2, i + 1);
+            lua_rawseti(L, -2, j++);
         }
     }
 
