@@ -31,6 +31,8 @@ end
 
 --- Log wrappers-------------------------------------------------------------------------------
 
+local debug_enabled = false
+
 local function info(...)
   ngx.log(ngx.INFO, "healthcheck: ", ...)
 end
@@ -44,7 +46,9 @@ local function errlog(...)
 end
 
 local function debug(...)
-  ngx.log(ngx.DEBUG, "healthcheck: ", ...)
+  if debug_enabled then
+    ngx.log(ngx.DEBUG, "healthcheck: ", ...)
+  end
 end
 
 --- Helpers -----------------------------------------------------------------------------------
@@ -498,6 +502,10 @@ end
 
 function _M.upstream_type(self)
   return self.ctx.upstream_type
+end
+
+function _M.enable_debug()
+  debug_enabled = true
 end
 
 return _M
