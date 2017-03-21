@@ -5,8 +5,6 @@ dynamic-upstream-module-lua - Lua bindings for dynamic-upstream-module
 
 This module supports http and stream upstream types.
 
-[![Build Status](https://drone.io/github.com/ZigzagAK/ngx_dynamic_upstream_lua/status.png)](https://drone.io/github.com/ZigzagAK/ngx_dynamic_upstream_lua/latest)
-
 Table of Contents
 =================
 
@@ -39,7 +37,6 @@ Table of Contents
     * [remove_peer](#remove_peer)
     * [update_peer](#update_peer)
     * [current_upstream](#current_upstream)
-* [Latest build](#latest-build)
 
 Dependencies
 ============
@@ -449,6 +446,3 @@ current_upstream
 Returns true and current upstream name on success, or false and a string describing an error otherwise.
 
 [Back to TOC](#table-of-contents)
-
-# Latest build
-  * https://drone.io/github.com/ZigzagAK/ngx_dynamic_upstream_lua/files

@@ -315,11 +315,14 @@ local function do_check(ctx)
     else
       for i, peer in pairs(preprocess_peers(peers, u))
       do
-        if peer.upstream.healthcheck or ctx.check_all then
-          if not peer.upstream.healthcheck then
-            peer.upstream.healthcheck = ctx.healthcheck
+        local ok, disabled = ctx.get_dict_key("disabled", peer)
+        if not disabled then
+          if peer.upstream.healthcheck or ctx.check_all then
+            if not peer.upstream.healthcheck then
+              peer.upstream.healthcheck = ctx.healthcheck
+            end
+            table.insert(all_peers, peer)
           end
-          table.insert(all_peers, peer)
         end
       end
     end
@@ -337,7 +340,7 @@ check = function (premature, ctx)
   end
 
   local ok, err
-  
+
   ok, err = pcall(do_check, ctx)
   if not ok then
     errlog("failed to run healthcheck cycle: ", err)
@@ -474,8 +477,10 @@ function _M.new(upstream_type, opts, tab)
   hc.tab = tab
 
   local mt = { __index = {
-    start     = spawn_checker,
-    stop      = function() self.ctx.stop = true end,
+    start         = spawn_checker,
+    stop          = function()
+      self.ctx.stop = true
+    end,
     upstream_type = _M.upstream_type
   } }
 
@@ -506,6 +511,26 @@ end
 
 function _M.enable_debug()
   debug_enabled = true
+end
+
+function _M.disable_peer(upstream_type, dict, u, peer_name)
+  if u and peer_name then
+    local peer = {
+      name = peer_name,
+      upstream = { name = u }
+    }
+    dict:set(gen_peer_key(upstream_type .. ":disabled:", peer), 1)
+  end
+end
+
+function _M.enable_peer(upstream_type, dict, u, peer_name)
+  if u and peer_name then
+    local peer = {
+      name = peer_name,
+      upstream = { name = u }
+    }
+    dict:delete(gen_peer_key(upstream_type .. ":disabled:", peer))
+  end
 end
 
 return _M

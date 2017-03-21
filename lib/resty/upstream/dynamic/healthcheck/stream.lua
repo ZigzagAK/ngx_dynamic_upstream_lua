@@ -23,6 +23,15 @@ function _M.fails(dict, upstream, peer)
     return common.fails("stream", dict, upstream, peer)
 end
 
+function _M.disable_peer(dict, u, peer_name)
+    common.disable_peer("stream", dict, u, peer_name)
+    upstream.set_peer_down(u, peer_name)
+end
+
+function _M.enable_peer(dict, u, peer_name)
+    common.enable_peer("stream", dict, u, peer_name)
+end
+
 --- Wrappers -----------------------------------------------------------------------
 
 function _M.set_peer_down(u, peer)
