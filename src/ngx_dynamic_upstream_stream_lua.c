@@ -113,7 +113,8 @@ ngx_dynamic_upstream_get(lua_State * L, ngx_dynamic_upstream_op_t *op)
 
     for (i = 0; i < umcf->upstreams.nelts; i++) {
         uscf = uscfp[i];
-        if (ngx_strncmp(uscf->host.data, op->upstream.data, op->upstream.len) == 0)
+        if (op->upstream.len == uscf->host.len &&
+            ngx_strncmp(uscf->host.data, op->upstream.data, op->upstream.len) == 0)
         {
             return uscf;
         }
