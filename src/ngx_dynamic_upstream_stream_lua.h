@@ -11,6 +11,7 @@ struct ngx_stream_upstream_check_opts_s {
     ngx_uint_t   fall;
     ngx_uint_t   rise;
     ngx_msec_t   timeout;
+    ngx_uint_t   interval;
     ngx_str_t    request_body;
     ngx_str_t    response_body;
 };

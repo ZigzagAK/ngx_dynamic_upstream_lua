@@ -45,7 +45,7 @@ ngx_http_create_shm_zone(ngx_conf_t *cf, ngx_http_dynamic_upstream_lua_srv_conf_
 static ngx_command_t ngx_http_dynamic_upstream_lua_commands[] = {
 
     { ngx_string("check"),
-      NGX_HTTP_UPS_CONF|NGX_CONF_1MORE,
+      NGX_HTTP_UPS_CONF|NGX_CONF_ANY,
       ngx_http_dynamic_upstream_lua_check,
       0,
       0,
@@ -145,7 +145,7 @@ ngx_http_dynamic_upstream_lua_init_main_conf(ngx_conf_t *cf, void *conf)
     ngx_uint_t                                  i;
     ngx_http_upstream_srv_conf_t              **uscfp;
     ngx_http_upstream_main_conf_t              *umcf;
-    
+
     umcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_upstream_module);
 
     uscfp = umcf->upstreams.elts;
@@ -205,9 +205,10 @@ ngx_http_init_shm_zone(ngx_shm_zone_t *shm_zone, void *data)
         return NGX_ERROR;
     }
 
-    ucscf->data->fall    = ucscf->conf->fall;
-    ucscf->data->rise    = ucscf->conf->rise;
-    ucscf->data->timeout = ucscf->conf->timeout;
+    ucscf->data->fall     = ucscf->conf->fall;
+    ucscf->data->rise     = ucscf->conf->rise;
+    ucscf->data->timeout  = ucscf->conf->timeout;
+    ucscf->data->interval = ucscf->conf->interval;
 
     ucscf->data->upstream       = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->upstream);
     ucscf->data->type           = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->type);
@@ -283,6 +284,11 @@ ngx_http_dynamic_upstream_lua_create_srv_conf(ngx_conf_t *cf)
         return NULL;
     }
 
+    ucscf->conf->fall     = 1;
+    ucscf->conf->rise     = 1;
+    ucscf->conf->timeout  = 1000;
+    ucscf->conf->interval = NGX_CONF_UNSET_UINT;
+
     return ucscf;
 }
 
@@ -343,23 +349,21 @@ ngx_http_dynamic_upstream_lua_check(ngx_conf_t *cf, ngx_command_t *cmd, void *co
 
             continue;
         }
+
+        if (ngx_strncmp(value[i].data, "interval=", 9) == 0) {
+            ucscf->conf->interval = ngx_atoi(value[i].data + 9, value[i].len - 9);
+
+            if (ucscf->conf->interval == (ngx_uint_t) NGX_ERROR || ucscf->conf->interval == 0) {
+                goto invalid_check_parameter;
+            }
+
+            continue;
+        }
     }
 
     if (ucscf->conf->type.data == NULL) {
         ucscf->conf->type.data = (u_char *) "tcp";
         ucscf->conf->type.len = 3;
-    }
-
-    if (ucscf->conf->fall == 0) {
-        ucscf->conf->fall = 1;
-    }
-
-    if (ucscf->conf->rise == 0) {
-        ucscf->conf->rise = 1;
-    }
-
-    if (ucscf->conf->timeout == 0) {
-        ucscf->conf->timeout = 1000;
     }
 
     return NGX_CONF_OK;

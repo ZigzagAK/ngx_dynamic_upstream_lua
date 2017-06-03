@@ -6,4 +6,4 @@ do
   prove $t
 done
 
-rm -rf t/servroot
+# rm -rf t/servroot

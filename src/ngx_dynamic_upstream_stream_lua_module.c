@@ -54,7 +54,7 @@ static ngx_int_t ngx_stream_dynamic_upstream_write_filter(ngx_stream_session_t *
 static ngx_command_t ngx_stream_dynamic_upstream_lua_commands[] = {
 
     { ngx_string("check"),
-      NGX_STREAM_UPS_CONF|NGX_CONF_1MORE,
+      NGX_STREAM_UPS_CONF|NGX_CONF_ANY,
       ngx_stream_dynamic_upstream_lua_check,
       0,
       0,
@@ -306,6 +306,7 @@ ngx_stream_init_shm_zone(ngx_shm_zone_t *shm_zone, void *data)
     ucscf->data->fall     = ucscf->conf->fall;
     ucscf->data->rise     = ucscf->conf->rise;
     ucscf->data->timeout  = ucscf->conf->timeout;
+    ucscf->data->interval = ucscf->conf->interval;
     ucscf->data->upstream = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->upstream);
     ucscf->data->request_body   = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->request_body);
     ucscf->data->response_body  = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->response_body);
@@ -366,9 +367,10 @@ ngx_stream_dynamic_upstream_lua_create_srv_conf(ngx_conf_t *cf)
         return NULL;
     }
 
-    ucscf->conf->fall    = NGX_CONF_UNSET_UINT;
-    ucscf->conf->rise    = NGX_CONF_UNSET_UINT;
-    ucscf->conf->timeout = NGX_CONF_UNSET_MSEC;
+    ucscf->conf->fall     = 1;
+    ucscf->conf->rise     = 1;
+    ucscf->conf->timeout  = 1000;
+    ucscf->conf->interval = NGX_CONF_UNSET_UINT;
 
     return ucscf;
 }
@@ -416,18 +418,16 @@ ngx_stream_dynamic_upstream_lua_check(ngx_conf_t *cf, ngx_command_t *cmd, void *
 
             continue;
         }
-    }
 
-    if (ucscf->conf->fall == 0) {
-        ucscf->conf->fall = 1;
-    }
+        if (ngx_strncmp(value[i].data, "interval=", 9) == 0) {
+            ucscf->conf->interval = ngx_atoi(value[i].data + 9, value[i].len - 9);
 
-    if (ucscf->conf->rise == 0) {
-        ucscf->conf->rise = 1;
-    }
+            if (ucscf->conf->interval == (ngx_uint_t) NGX_ERROR || ucscf->conf->interval == 0) {
+                goto invalid_check_parameter;
+            }
 
-    if (ucscf->conf->timeout == 0) {
-        ucscf->conf->timeout = 1000;
+            continue;
+        }
     }
 
     return NGX_CONF_OK;

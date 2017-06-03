@@ -87,7 +87,7 @@ To use healthcheck parameters you need [nginx-resty-auto-healthcheck-config](htt
 
 check
 -----
-* **syntax**: `check fall=2 rise=2 timeout=1000 type=http|tcp`
+* **syntax**: `check fall=2 rise=2 timeout=1000 interval=10 type=http|tcp`
 * **default**: `none`
 * **context**: `upstream`
 

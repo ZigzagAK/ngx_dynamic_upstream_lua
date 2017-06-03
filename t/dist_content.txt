@@ -32,8 +32,12 @@ nginx-1.11.6/lib/lua/5.1/
 nginx-1.11.6/lib/ngx/
 nginx-1.11.6/lib/ngx/balancer.lua
 nginx-1.11.6/lib/ngx/balancer.md
+nginx-1.11.6/lib/ngx/errlog.lua
+nginx-1.11.6/lib/ngx/errlog.md
 nginx-1.11.6/lib/ngx/ocsp.lua
 nginx-1.11.6/lib/ngx/ocsp.md
+nginx-1.11.6/lib/ngx/process.lua
+nginx-1.11.6/lib/ngx/process.md
 nginx-1.11.6/lib/ngx/re.lua
 nginx-1.11.6/lib/ngx/re.md
 nginx-1.11.6/lib/ngx/semaphore.lua
