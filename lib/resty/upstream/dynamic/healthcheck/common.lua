@@ -65,7 +65,7 @@ local function set_peer_state_globally(ctx, peer, state)
     errlog("failed to set peer state: ", err)
   end
   peer.down = state.down
-  ctx.set_dict_key("d", peer, peer.down)
+  ctx.set_dict_key("down", peer, peer.down)
 end
 
 local function state_up(ctx)
@@ -388,8 +388,18 @@ local function init_down_state(ctx)
     end
     for _, peer in ipairs(peers)
     do
+      peer.upstream = u
       if u.healthcheck or ctx.check_all then
-        ctx.set_peer_down(u.name, peer)
+        local ok, disabled = ctx.get_dict_key("disabled", peer)
+        local ok, down = ctx.get_dict_key("down", peer, true)
+        if not disabled and not down then
+          local ok, succ = ctx.get_dict_key("succ", peer, 0)
+          if ok and succ >= (u.healthcheck or ctx.healthcheck).rise then
+            ctx.set_peer_up(u.name, peer)
+          end
+        else
+          ctx.set_peer_down(u.name, peer)
+        end
       end
     end
   end
@@ -429,7 +439,7 @@ local function spawn_checker(self)
     get_dict_key = function(prefix, peer, default)
       local key = gen_peer_key(self.ctx.upstream_type .. ":" .. prefix .. ":", peer)
       local val, err = self.ctx.dict:get(key)
-      if not val then
+      if val == nil then
         if err then
           errlog("failed to get key " .. key .. ", error: ", err)
           return false, nil
@@ -477,11 +487,9 @@ local function spawn_checker(self)
     return nil, "failed to create timer: " .. err
   end
 
-  if not ctx.dict.started then
+  if ngx.worker.id() == 0 then
     init_down_state(ctx)
   end
-
-  ctx.dict.started = true
 
   ok, err = ngx.timer.at(0, check, ctx)
   if not ok then
