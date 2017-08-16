@@ -1,5 +1,5 @@
 local _M = {
-  _VERSION = '1.4.0'
+  _VERSION = '1.4.1'
 }
 
 --- Pre checks --------------------------------------------------------------------------------
@@ -325,7 +325,14 @@ local function do_check(ctx)
   local all_peers = {}
   local now = ngx.now()
 
-  for _, u in ipairs(ctx.upstreams)
+
+  local ok, upstreams, err = ctx.get_upstreams()
+  if not ok then
+    warn("failed to get upstreams: ", err)
+    return
+  end
+
+  for _, u in ipairs(upstreams)
   do
     local ok, peers, err = ctx.get_peers(u.name)
     if not ok then
@@ -380,7 +387,11 @@ check = function (premature, ctx)
 end
 
 local function init_down_state(ctx)
-  for _, u in pairs(ctx.upstreams)
+  local ok, upstreams, err = ctx.get_upstreams()
+  if not ok then
+    error(err)
+  end
+  for _, u in pairs(upstreams)
   do
     local ok, peers, err = ctx.get_peers(u.name)
     if not ok then
@@ -474,12 +485,6 @@ local function spawn_checker(self)
 
   if ctx.typ ~= "http" and ctx.typ ~= "tcp" then
     return nil, "'http' and 'tcp' type can be used"
-  end
-
-  local ok, err
-  ok, ctx.upstreams, err = self.ctx.get_upstreams()
-  if not ok then
-    return nil, err
   end
 
   ctx.mutex, err = lock:new(ctx.shm)
