@@ -910,7 +910,9 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
 
     lua_getfield(L, 2, "command");
 
-    if (lua_istable(L, 3)) {
+    if (!lua_istable(L, 3)) {
+        ucscf->data->type = ngx_shm_copy_string(ucscf->shpool, type_tcp);
+    } else {
         lua_getfield(L, 3, "uri");
         lua_getfield(L, 3, "body");
 
