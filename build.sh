@@ -60,9 +60,10 @@ function build_debug() {
               --with-pcre=$PCRE_PREFIX \
               --with-stream \
               --with-debug \
-              --with-cc-opt="-O0 -DNO_NGX_STREAM_LUA_MODULE" \
+              --with-cc-opt="-O0" \
               --add-module=../ngx_devel_kit \
               --add-module=../lua-nginx-module \
+              --add-module=../stream-lua-nginx-module \
               --add-module=../ngx_dynamic_upstream \
               --add-module=../../../ngx_dynamic_upstream_lua > /dev/null
 
@@ -91,9 +92,9 @@ function build_release() {
               --with-pcre=$PCRE_PREFIX \
               --with-stream \
               --with-debug \
-              --with-cc-opt="-DNO_NGX_STREAM_LUA_MODULE" \
               --add-module=../ngx_devel_kit \
               --add-module=../lua-nginx-module \
+              --add-module=../stream-lua-nginx-module \
               --add-module=../ngx_dynamic_upstream \
               --add-module=../../../ngx_dynamic_upstream_lua > /dev/null
 
@@ -188,6 +189,7 @@ function download() {
 
   download_module simpl       ngx_devel_kit                    master
   download_module openresty   lua-nginx-module                 master
+  download_module openresty   stream-lua-nginx-module          master
   download_module ZigzagAK    ngx_dynamic_upstream             master
 
   cd ..
@@ -278,9 +280,6 @@ function install_lua_modules() {
 
   cd download/lua_modules
 
-  install_resty_module openresty    lua-resty-lock                      lib                 . master $download
-  install_resty_module openresty    lua-resty-core                      lib                 . master $download
-
   install_resty_module ZigzagAK     nginx-resty-auto-healthcheck-config scripts/start.sh    . master $download
   install_resty_module ZigzagAK     nginx-resty-auto-healthcheck-config scripts/stop.sh     . master 0
   install_resty_module ZigzagAK     nginx-resty-auto-healthcheck-config scripts/debug.sh    . master 0
@@ -303,14 +302,7 @@ kernel_version=$(uname -r)
 
 cd install
 tar zcvf nginx-$VERSION$SUFFIX-$kernel_name-$kernel_version.tar.gz nginx-$VERSION$SUFFIX
-
-gunzip -c nginx-$VERSION$SUFFIX-$kernel_name-$kernel_version.tar.gz | tar --list | sort | diff ../t/dist_content.txt -
-r=$?
-if [ $r -eq 0 ]; then
-  rm -rf nginx-$VERSION$SUFFIX
-else
-  rm nginx-$VERSION$SUFFIX-$kernel_name-$kernel_version.tar.gz
-fi
+rm -rf nginx-$VERSION$SUFFIX
 
 cd ..
 

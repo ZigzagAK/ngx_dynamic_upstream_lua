@@ -5,6 +5,7 @@
 
 
 #ifndef NO_NGX_STREAM_LUA_MODULE
+#include "ngx_stream_lua_request.h"
 #include "ngx_stream_lua_api.h"
 #endif
 

@@ -6,9 +6,7 @@
 
 #include "ngx_dynamic_shm.h"
 #include "ngx_dynamic_upstream_lua.h"
-
-
-#include "../ngx_dynamic_upstream/src/ngx_dynamic_upstream_module.h"
+#include "ngx_dynamic_upstream_module.h"
 
 
 extern ngx_module_t ngx_http_dynamic_upstream_lua_module;
