@@ -5,6 +5,10 @@ dynamic-upstream-module-lua - Lua bindings for dynamic-upstream-module
 
 This module supports http and stream upstream types.
 
+Build status
+======
+[![Build Status](https://travis-ci.org/ZigzagAK/ngx_dynamic_upstream_lua.svg)](https://travis-ci.org/ZigzagAK/ngx_dynamic_upstream_lua)
+
 Table of Contents
 =================
 
@@ -61,14 +65,6 @@ Install
 
 Build nginx.
 All dependencies are downloaded automaticaly.
-
-Pre requirements (for example centos/redhat)
-
-```
-sudo yum gcc-c++.x86_64 zlib-devel openssl-devel
-```
-
-Build
 
 ```
 git clone git@github.com:ZigzagAK/ngx_dynamic_upstream_lua.git
