@@ -8,7 +8,7 @@ if not ngx.config or not ngx.config.ngx_lua_version or ngx.config.ngx_lua_versio
   error("ngx_lua 0.9.5+ required")
 end
 
-local lock, http, new_tab
+local lock, http
 
 do
   local ok
@@ -22,20 +22,11 @@ do
   if not ok then
     error("resty.http module required")
   end
-
-  ok, new_tab = pcall(require, "table.new")
-  if not ok or type(new_tab) ~= "function" then
-    new_tab = function (narr, nrec) return {} end
-  end
 end
 
 --- Log wrappers-------------------------------------------------------------------------------
 
 local debug_enabled = false
-
-local function info(...)
-  ngx.log(ngx.INFO, "healthcheck: ", ...)
-end
 
 local function warn(...)
   ngx.log(ngx.WARN, "healthcheck: ", ...)
@@ -126,13 +117,6 @@ local function peer_ok(ctx, peer)
   ctx.incr_dict_key("g_successes", peer)
 end
 
-local function peer_error(ctx, peer, ...)
-  if not peer.down then
-    errlog(...)
-  end
-  peer_fail(ctx, peer)
-end
-
 local function change_peer_state(ok, ctx, peer)
   if not ok then
     peer_fail(ctx, peer)
@@ -167,14 +151,15 @@ local function check_tcp(ctx, peer)
     end
   else
     if peer.upstream.healthcheck.command then
-      _, err = sock:send(peer.upstream.healthcheck.command.body)
+      local bytes
+      bytes, err = sock:send(peer.upstream.healthcheck.command.body)
       local expected = peer.upstream.healthcheck.command.expected or {}
       if not err and expected.body then
         local data = ""
         while true
         do
           local part
-          part, err, _ = sock:receive("*l")
+          part, err = sock:receive("*l")
           if part then
             data = data .. part
             if ngx.re.match(data, expected.body, "mx") then
@@ -186,7 +171,7 @@ local function check_tcp(ctx, peer)
           end
         end
       end
-      if err then
+      if not bytes then
         ok = nil
         if not peer.down then
           errlog("failed to check ", peer.name, ": ", err)
@@ -244,7 +229,8 @@ local function check_peer(ctx, peer)
         return true
       end
     end
-    debug("Checking ", ctx.upstream_type, " upstream: ", peer.upstream.name, " peer ", peer.name, " : http status=", status, " is not in the valid statuses list")
+    debug("Checking ", ctx.upstream_type, " upstream: ", peer.upstream.name,
+          " peer ", peer.name, " : http status=", status, " is not in the valid statuses list")
     return false
   end
 
@@ -258,7 +244,8 @@ local function check_peer(ctx, peer)
     return
   end
 
-  debug("Checking ", ctx.upstream_type, " upstream: ", peer.upstream.name, " peer ", peer.name, " : http status=", response.status, " body=[", response.body, "]")
+  debug("Checking ", ctx.upstream_type, " upstream: ", peer.upstream.name,
+        " peer ", peer.name, " : http status=", response.status, " body=[", response.body, "]")
 
   if not check_status(peer.upstream.healthcheck.command.expected.codes, response.status) then
     peer_fail(ctx, peer)
@@ -267,7 +254,8 @@ local function check_peer(ctx, peer)
 
   if peer.upstream.healthcheck.command.expected.body then
     if not ngx.re.match(response.body, peer.upstream.healthcheck.command.expected.body) then
-      debug("Checking ", ctx.upstream_type, " upstream: ", peer.upstream.name, " peer ", peer.name, " : body=[", response.body, "] is not match the re=", peer.upstream.healthcheck.command.expected.body)
+      debug("Checking ", ctx.upstream_type, " upstream: ", peer.upstream.name, " peer ", peer.name,
+            " : body=[", response.body, "] is not match the re=", peer.upstream.healthcheck.command.expected.body)
       peer_fail(ctx, peer)
       return
     end
@@ -306,7 +294,7 @@ local function preprocess_peers(peers, upstream)
   do
     peer.upstream = upstream
     if peer.name then
-      local from, to, err = ngx.re.find(peer.name, [[^(.*):\d+$]], "jo", nil, 1)
+      local from, to = ngx.re.find(peer.name, [[^(.*):\d+$]], "jo", nil, 1)
       if from then
         peer.host = peer.name:sub(1, to)
         peer.port = tonumber(peer.name:sub(to + 2))
@@ -317,7 +305,7 @@ local function preprocess_peers(peers, upstream)
 end
 
 local function do_check(ctx)
-  local elapsed, err = ctx.mutex:lock("mutex:hc:cycle")
+  local elapsed = ctx.mutex:lock("mutex:hc:cycle")
   if not elapsed then
     return
   end
@@ -338,9 +326,9 @@ local function do_check(ctx)
     if not ok then
       warn("failed to get peers [upstream:" .. u.name .. "]: ", err)
     else
-      for i, peer in pairs(preprocess_peers(peers, u))
+      for _, peer in pairs(preprocess_peers(peers, u))
       do
-        local ok, disabled = ctx.get_dict_key("disabled", peer)
+        local _, disabled = ctx.get_dict_key("disabled", peer)
         if not disabled then
           if peer.upstream.healthcheck or ctx.check_all then
             if not peer.upstream.healthcheck then
@@ -349,7 +337,7 @@ local function do_check(ctx)
             if not peer.upstream.healthcheck.interval then
               peer.upstream.healthcheck.interval = ctx.healthcheck.interval
             end
-            local ok, last = ctx.get_dict_key("last", peer, 0)
+            local _, last = ctx.get_dict_key("last", peer, 0)
             if last + peer.upstream.healthcheck.interval <= now then
               table.insert(all_peers, peer)
               ctx.set_dict_key("last", peer, now)
@@ -401,8 +389,8 @@ local function init_down_state(ctx)
     do
       peer.upstream = u
       if u.healthcheck or ctx.check_all then
-        local ok, disabled = ctx.get_dict_key("disabled", peer)
-        local ok, down = ctx.get_dict_key("down", peer, true)
+        local _, disabled = ctx.get_dict_key("disabled", peer)
+        local _, down = ctx.get_dict_key("down", peer, true)
         if not disabled and not down then
           local ok, succ = ctx.get_dict_key("succ", peer, 0)
           if ok and succ >= (u.healthcheck or ctx.healthcheck).rise then
@@ -487,6 +475,7 @@ local function spawn_checker(self)
     return nil, "'http' and 'tcp' type can be used"
   end
 
+  local ok, err
   ctx.mutex, err = lock:new(ctx.shm)
   if not ctx.mutex then
     return nil, "failed to create timer: " .. err
@@ -515,7 +504,7 @@ function _M.new(upstream_type, opts, tab)
 
   local mt = { __index = {
     start         = spawn_checker,
-    stop          = function()
+    stop          = function(self)
       self.ctx.stop = true
     end,
     upstream_type = _M.upstream_type
