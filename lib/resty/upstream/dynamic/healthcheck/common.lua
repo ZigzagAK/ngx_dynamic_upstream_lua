@@ -171,7 +171,7 @@ local function check_tcp(ctx, peer)
           end
         end
       end
-      if not bytes then
+      if err then
         ok = nil
         if not peer.down then
           errlog("failed to check ", peer.name, ": ", err)
