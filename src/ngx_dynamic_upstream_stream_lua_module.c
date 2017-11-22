@@ -172,6 +172,10 @@ ngx_stream_dynamic_upstream_write_filter(ngx_stream_session_t *s, ngx_chain_t *i
         goto skip;
     }
 
+    if (uscf->srv_conf == NULL) {
+    	goto skip;
+    }
+
     ucscf = ngx_stream_conf_upstream_srv_conf(uscf, ngx_stream_dynamic_upstream_lua_module);
     if (ucscf == NULL) {
         goto skip;
