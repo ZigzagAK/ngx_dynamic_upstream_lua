@@ -1,5 +1,5 @@
 local _M = {
-  _VERSION = '1.4.1'
+  _VERSION = '1.5.1'
 }
 
 --- Pre checks --------------------------------------------------------------------------------
@@ -185,6 +185,11 @@ local function check_tcp(ctx, peer)
 end
 
 local function check_peer(ctx, peer)
+  if peer.name:match("^unix:") then
+    peer_ok(ctx, peer)
+    return
+  end
+
   if ctx.typ == "tcp" or not peer.upstream.healthcheck.command then
     check_tcp(ctx, peer)
     return
