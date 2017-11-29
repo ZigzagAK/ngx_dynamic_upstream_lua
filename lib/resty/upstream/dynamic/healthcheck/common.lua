@@ -109,12 +109,12 @@ local function peer_ok(ctx, peer)
 
   ctx.set_dict_key("succ", peer, succ)
 
-  if succ >= peer.upstream.healthcheck.rise and peer.down then
+  local g_successes = ctx.incr_dict_key("g_successes", peer)
+
+  if peer.down and (succ >= peer.upstream.healthcheck.rise or g_successes --[[ first check on start --]] == 1) then
     debug("upstream: ", peer.upstream.name, " peer: ", peer.name, " is turned up after ", succ, " success(es)")
     set_peer_state_globally(ctx, peer, state_up(ctx))
   end
-
-  ctx.incr_dict_key("g_successes", peer)
 end
 
 local function change_peer_state(ok, ctx, peer)
@@ -455,11 +455,12 @@ local function spawn_checker(self)
 
     incr_dict_key = function(prefix, peer)
       local key = gen_peer_key(self.ctx.upstream_type .. ":" .. prefix .. ":", peer)
-      local ok, err = self.ctx.dict:incr(key, 1, 0)
-      if not ok then
+      local val, err = self.ctx.dict:incr(key, 1, 0)
+      if not val then
         errlog("failed to increment key " .. key .. ", error: ", err)
       end
-    end,
+      return val
+    end
   }
 
   local ctx = self.ctx
