@@ -1,5 +1,5 @@
 local _M = {
-  _VERSION = '1.5.1'
+  _VERSION = "1.5.2"
 }
 
 --- Pre checks --------------------------------------------------------------------------------
@@ -190,7 +190,7 @@ local function check_peer(ctx, peer)
     return
   end
 
-  if ctx.typ == "tcp" or not peer.upstream.healthcheck.command then
+  if ctx.type == "tcp" or not peer.upstream.healthcheck.command then
     check_tcp(ctx, peer)
     return
   end
@@ -364,14 +364,15 @@ check = function (premature, ctx)
     return
   end
 
-  local ok, err
-
-  ok, err = pcall(do_check, ctx)
-  if not ok then
-    errlog("failed to run healthcheck cycle: ", err)
+  if ctx.dict:add(ctx.upstream_type .. ":lock", true, 600) then
+    local ok, err = pcall(do_check, ctx)
+    ctx.dict:delete(ctx.upstream_type .. ":lock")
+    if not ok then
+      errlog("failed to run healthcheck cycle: ", err)
+    end
   end
 
-  ok, err = ngx.timer.at(1, check, ctx)
+  local ok, err = ngx.timer.at(1, check, ctx)
   if not ok then
     if err ~= "process exiting" then
       errlog("failed to create timer: ", err)
@@ -409,7 +410,7 @@ local function init_down_state(ctx)
   end
 end
 
-local function spawn_checker(self)
+local function initialize(self)
   local opts = self.opts
 
   self.ctx = {
@@ -422,7 +423,7 @@ local function spawn_checker(self)
     },
     check_all = opts.check_all,
     dict      = ngx.shared[opts.shm],
-    typ       = opts.typ or "tcp",
+    type      = opts.type or "tcp",
     shm       = opts.shm,
 
     concurrency = opts.concurrency or 100,
@@ -477,7 +478,7 @@ local function spawn_checker(self)
     return nil, "shm '" .. tostring(ctx.shm) .. "' not found"
   end
 
-  if ctx.typ ~= "http" and ctx.typ ~= "tcp" then
+  if ctx.type ~= "http" and ctx.type ~= "tcp" then
     return nil, "'http' and 'tcp' type can be used"
   end
 
@@ -487,16 +488,7 @@ local function spawn_checker(self)
     return nil, "failed to create timer: " .. err
   end
 
-  if ngx.worker.id() == 0 then
-    init_down_state(ctx)
-  end
-
-  ok, err = ngx.timer.at(0, check, ctx)
-  if not ok then
-    return nil, "failed to create timer: " .. err
-  end
-
-  return true
+  return self
 end
 
 --- API ---------------------------------------------------------------------------------------
@@ -509,14 +501,17 @@ function _M.new(upstream_type, opts, tab)
   hc.tab = tab
 
   local mt = { __index = {
-    start         = spawn_checker,
-    stop          = function(self)
+    start = function(self)
+      init_down_state(self.ctx)
+      return ngx.timer.at(0, check, self.ctx)
+    end,
+    stop = function(self)
       self.ctx.stop = true
     end,
     upstream_type = _M.upstream_type
   } }
 
-  return setmetatable(hc, mt)
+  return initialize(setmetatable(hc, mt))
 end
 
 function _M.successes(upstream_type, dict, u, peer)
