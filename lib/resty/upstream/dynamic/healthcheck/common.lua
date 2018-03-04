@@ -107,12 +107,21 @@ local function peer_ok(ctx, peer)
     ctx.set_dict_key("fail", peer, 0)
   end
 
+  local g_successes = ctx.incr_dict_key("g_successes", peer)
+  if g_successes == 1 then
+    --[[ first check on start --]]
+    succ = peer.upstream.healthcheck.rise
+    ctx.set_dict_key("g_successes", peer, succ)
+  end
+
   ctx.set_dict_key("succ", peer, succ)
 
-  local g_successes = ctx.incr_dict_key("g_successes", peer)
-
-  if peer.down and (succ >= peer.upstream.healthcheck.rise or g_successes --[[ first check on start --]] == 1) then
-    debug("upstream: ", peer.upstream.name, " peer: ", peer.name, " is turned up after ", succ, " success(es)")
+  if peer.down and succ >= peer.upstream.healthcheck.rise then
+    if g_successes > peer.upstream.healthcheck.rise then
+      debug("upstream: ", peer.upstream.name, " peer: ", peer.name, " is turned up after ", succ, " success(es)")
+    else
+      debug("upstream: ", peer.upstream.name, " peer: ", peer.name, " is turned up on startup")
+    end
     set_peer_state_globally(ctx, peer, state_up(ctx))
   end
 end
