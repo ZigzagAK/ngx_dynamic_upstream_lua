@@ -2,6 +2,8 @@ local _M = {
   _VERSION = "1.5.2"
 }
 
+local cjson = require "cjson"
+
 --- Pre checks --------------------------------------------------------------------------------
 
 if not ngx.config or not ngx.config.ngx_lua_version or ngx.config.ngx_lua_version < 9005 then
@@ -28,35 +30,19 @@ end
 
 local debug_enabled = false
 
-local function warn(...)
-  ngx.log(ngx.WARN, "healthcheck: ", ...)
-end
-
-local function errlog(...)
-  ngx.log(ngx.ERR, "healthcheck: ", ...)
-end
-
-local function debug(...)
-  if debug_enabled then
-    ngx.log(ngx.DEBUG, "healthcheck: ", ...)
-  end
-end
-
---- Helpers -----------------------------------------------------------------------------------
-
-local function gen_peer_key(prefix, peer)
-  return prefix .. peer.upstream.name .. ":" .. peer.name
-end
-
 --- Implementation ----------------------------------------------------------------------------
+
+local function foreachi(t, f)
+  for i=1,#t do f(t[i]) end
+end
 
 local function set_peer_state_globally(ctx, peer, state)
   local ok, _, err = state.fun(peer.upstream.name, peer)
   if not ok then
-    errlog("failed to set peer state: ", err)
+    ctx:errlog("failed to set peer state: ", err)
   end
   peer.down = state.down
-  ctx.set_dict_key("down", peer, peer.down)
+  ctx.dict:set_dict_key("down", peer, peer.down)
 end
 
 local function state_up(ctx)
@@ -74,53 +60,53 @@ local function state_down(ctx)
 end
 
 local function peer_fail(ctx, peer)
-  local ok, fails = ctx.get_dict_key("fail", peer, 0)
-  if not ok then
+  local fails = ctx.dict:get_dict_key("fail", peer, 0)
+  if not fails then
     return
   end
 
   fails = fails + 1
 
   if fails == 1 then
-    ctx.set_dict_key("succ", peer, 0)
+    ctx.dict:set_dict_key("succ", peer, 0)
   end
 
-  ctx.set_dict_key("fail", peer, fails)
+  ctx.dict:set_dict_key("fail", peer, fails)
 
   if fails >= peer.upstream.healthcheck.fall and not peer.down then
-    warn("upstream: ", peer.upstream.name, " peer: ", peer.name, " is turned down after ", fails, " failure(s)")
+    ctx:warn("upstream: ", peer.upstream.name, " peer: ", peer.name, " is turned down after ", fails, " failure(s)")
     set_peer_state_globally(ctx, peer, state_down(ctx))
   end
 
-  ctx.incr_dict_key("g_fails", peer)
+  ctx.dict:incr_dict_key("g_fails", peer)
 end
 
 local function peer_ok(ctx, peer)
-  local ok, succ = ctx.get_dict_key("succ", peer, 0)
-  if not ok then
+  local succ = ctx.dict:get_dict_key("succ", peer, 0)
+  if not succ then
     return
   end
 
   succ = succ + 1
 
   if succ == 1 then
-    ctx.set_dict_key("fail", peer, 0)
+    ctx.dict:set_dict_key("fail", peer, 0)
   end
 
-  local g_successes = ctx.incr_dict_key("g_successes", peer)
+  local g_successes = ctx.dict:incr_dict_key("g_successes", peer)
   if g_successes == 1 then
     --[[ first check on start --]]
     succ = peer.upstream.healthcheck.rise
-    ctx.set_dict_key("g_successes", peer, succ)
+    ctx.dict:set_dict_key("g_successes", peer, succ)
   end
 
-  ctx.set_dict_key("succ", peer, succ)
+  ctx.dict:set_dict_key("succ", peer, succ)
 
   if peer.down and succ >= peer.upstream.healthcheck.rise then
     if g_successes > peer.upstream.healthcheck.rise then
-      debug("upstream: ", peer.upstream.name, " peer: ", peer.name, " is turned up after ", succ, " success(es)")
+      ctx:debug("upstream: ", peer.upstream.name, " peer: ", peer.name, " is turned up after ", succ, " success(es)")
     else
-      debug("upstream: ", peer.upstream.name, " peer: ", peer.name, " is turned up on startup")
+      ctx:debug("upstream: ", peer.upstream.name, " peer: ", peer.name, " is turned up on startup")
     end
     set_peer_state_globally(ctx, peer, state_up(ctx))
   end
@@ -138,11 +124,11 @@ local function check_tcp(ctx, peer)
   local sock
   local ok, err
 
-  debug("Checking ", ctx.upstream_type, " peer ", peer.name, " with tcp")
+  ctx:debug("checking peer ", peer.name, " with tcp")
 
   sock, err = ngx.socket.tcp()
   if not sock then
-    errlog("failed to create stream socket: ", err)
+    ctx:errlog("failed to create stream socket: ", err)
     return
   end
 
@@ -156,7 +142,7 @@ local function check_tcp(ctx, peer)
 
   if not ok then
     if not peer.down then
-      errlog("failed to connect to ", peer.name, ": ", err)
+      ctx:errlog("failed to connect to ", peer.name, ": ", err)
     end
   else
     if peer.upstream.healthcheck.command then
@@ -183,7 +169,7 @@ local function check_tcp(ctx, peer)
       if err then
         ok = nil
         if not peer.down then
-          errlog("failed to check ", peer.name, ": ", err)
+          ctx:errlog("failed to check ", peer.name, ": ", err)
         end
       end
     end
@@ -204,7 +190,7 @@ local function check_peer(ctx, peer)
     return
   end
 
-  debug("Checking ", ctx.upstream_type, " upstream: ", peer.upstream.name, " peer: ", peer.name, " with http")
+  ctx:debug("checking upstream: ", peer.upstream.name, " peer: ", peer.name, " with http")
 
   local httpc = http.new()
 
@@ -212,7 +198,7 @@ local function check_peer(ctx, peer)
 
   local ok, err = httpc:connect(peer.host, peer.port or 80)
   if not ok then
-    warn("Checking ", ctx.upstream_type, " upstream: ", peer.upstream.name, " peer ", peer.name, " : ", err)
+    ctx:warn("checking upstream: ", peer.upstream.name, " peer ", peer.name, " : ", err)
     peer_fail(ctx, peer)
     return
   end
@@ -222,7 +208,7 @@ local function check_peer(ctx, peer)
   local response, err = httpc:request(peer.upstream.healthcheck.command)
 
   if not response then
-    warn("Checking ", ctx.upstream_type, " upstream: ", peer.upstream.name, " peer ", peer.name, " : ", err)
+    ctx:warn("checking upstream: ", peer.upstream.name, " peer ", peer.name, " : ", err)
     peer_fail(ctx, peer)
     return
   end
@@ -243,8 +229,8 @@ local function check_peer(ctx, peer)
         return true
       end
     end
-    debug("Checking ", ctx.upstream_type, " upstream: ", peer.upstream.name,
-          " peer ", peer.name, " : http status=", status, " is not in the valid statuses list")
+    ctx:debug("checking upstream: ", peer.upstream.name,
+              " peer ", peer.name, " : http status=", status, " is not in the valid statuses list")
     return false
   end
 
@@ -253,13 +239,13 @@ local function check_peer(ctx, peer)
   httpc:close()
 
   if err then
-    warn("Checking ", ctx.upstream_type, " upstream: ", peer.upstream.name, " peer ", peer.name, " : ", err)
+    ctx:warn("checking upstream: ", peer.upstream.name, " peer ", peer.name, " : ", err)
     peer_fail(ctx, peer)
     return
   end
 
-  debug("Checking ", ctx.upstream_type, " upstream: ", peer.upstream.name,
-        " peer ", peer.name, " : http status=", response.status, " body=[", response.body, "]")
+  ctx:debug("checking upstream: ", peer.upstream.name,
+            " peer ", peer.name, " : http status=", response.status, " body=[", response.body, "]")
 
   if not check_status(peer.upstream.healthcheck.command.expected.codes, response.status) then
     peer_fail(ctx, peer)
@@ -268,8 +254,8 @@ local function check_peer(ctx, peer)
 
   if peer.upstream.healthcheck.command.expected.body then
     if not ngx.re.match(response.body, peer.upstream.healthcheck.command.expected.body) then
-      debug("Checking ", ctx.upstream_type, " upstream: ", peer.upstream.name, " peer ", peer.name,
-            " : body=[", response.body, "] is not match the re=", peer.upstream.healthcheck.command.expected.body)
+      ctx:debug("checking upstream: ", peer.upstream.name, " peer ", peer.name,
+                " : body=[", response.body, "] is not match the re=", peer.upstream.healthcheck.command.expected.body)
       peer_fail(ctx, peer)
       return
     end
@@ -297,15 +283,14 @@ local function check_peers(ctx, peers)
     do
       local ok, err = ngx.thread.wait(threads[j])
       if not ok then
-        warn(err)
+        ctx:warn(err)
       end
     end
   end
 end
 
 local function preprocess_peers(peers, upstream)
-  for _, peer in pairs(peers)
-  do
+  foreachi(peers, function(peer)
     peer.upstream = upstream
     if peer.name then
       local from, to = ngx.re.find(peer.name, [[^(.*):\d+$]], "jo", nil, 1)
@@ -314,8 +299,16 @@ local function preprocess_peers(peers, upstream)
         peer.port = tonumber(peer.name:sub(to + 2))
       end
     end
-  end
+  end)
   return peers
+end
+
+local function peer_disabled(ctx, peer)
+  return ctx.dict:get_dict_key("disabled", peer) or
+         ctx.dict:get_dict_key("disabled", {
+           name = peer.name:match("^(.+):%d+$") or "not-ip-addr",
+           upstream = { name = "*" }
+         })
 end
 
 local function do_check(ctx)
@@ -325,42 +318,43 @@ local function do_check(ctx)
   end
 
   local all_peers = {}
-  local now = ngx.now()
-
 
   local ok, upstreams, err = ctx.get_upstreams()
   if not ok then
-    warn("failed to get upstreams: ", err)
+    ctx:warn("failed to get upstreams: ", err)
     return
   end
 
-  for _, u in ipairs(upstreams)
-  do
+  local now = ngx.now()
+
+  foreachi(upstreams, function(u)
     local ok, peers, err = ctx.get_peers(u.name)
     if not ok then
-      warn("failed to get peers [upstream:" .. u.name .. "]: ", err)
-    else
-      for _, peer in pairs(preprocess_peers(peers, u))
-      do
-        local _, disabled = ctx.get_dict_key("disabled", peer)
-        if not disabled then
-          if peer.upstream.healthcheck or ctx.check_all then
-            if not peer.upstream.healthcheck then
-              peer.upstream.healthcheck = ctx.healthcheck
-            end
-            if not peer.upstream.healthcheck.interval then
-              peer.upstream.healthcheck.interval = ctx.healthcheck.interval
-            end
-            local _, last = ctx.get_dict_key("last", peer, 0)
-            if last + peer.upstream.healthcheck.interval <= now then
-              table.insert(all_peers, peer)
-              ctx.set_dict_key("last", peer, now)
-            end
-          end
+      ctx:warn("failed to get peers [upstream:" .. u.name .. "]: ", err)
+      return
+    end
+
+    foreachi(preprocess_peers(peers, u), function(peer)
+      if peer_disabled(ctx, peer) then
+        return
+      end
+
+      if peer.upstream.healthcheck or ctx.check_all then
+        if not peer.upstream.healthcheck then
+          peer.upstream.healthcheck = ctx.healthcheck
+        end
+
+        if not peer.upstream.healthcheck.interval then
+          peer.upstream.healthcheck.interval = ctx.healthcheck.interval
+        end
+
+        if ctx.dict:get_dict_key("last", peer, 0) + peer.upstream.healthcheck.interval <= now then
+          table.insert(all_peers, peer)
+          ctx.dict:set_dict_key("last", peer, now)
         end
       end
-    end
-  end
+    end)
+  end)
 
   check_peers(ctx, all_peers)
 
@@ -369,60 +363,85 @@ end
 
 local check
 check = function (premature, ctx)
-  if premature or ctx.stop then
+  if premature or ctx.stop_flag then
     return
   end
 
-  if ctx.dict:add(ctx.upstream_type .. ":lock", true, 600) then
+  if ctx.dict.shm:add(ctx.upstream_type .. ":lock", true, 600) then
     local ok, err = pcall(do_check, ctx)
-    ctx.dict:delete(ctx.upstream_type .. ":lock")
+    ctx.dict.shm:delete(ctx.upstream_type .. ":lock")
     if not ok then
-      errlog("failed to run healthcheck cycle: ", err)
+      ctx:errlog("failed to run healthcheck cycle: ", err)
     end
   end
 
   local ok, err = ngx.timer.at(1, check, ctx)
   if not ok then
     if err ~= "process exiting" then
-      errlog("failed to create timer: ", err)
+      ctx:errlog("failed to create timer: ", err)
     end
   end
 end
 
-local function init_down_state(ctx)
+local function init_state(ctx)
   local ok, upstreams, err = ctx.get_upstreams()
-  if not ok then
-    error(err)
-  end
-  for _, u in pairs(upstreams)
-  do
+  assert(ok, err)
+  foreachi(upstreams, function(u)
     local ok, peers, err = ctx.get_peers(u.name)
-    if not ok then
-      error(err)
-    end
-    for _, peer in ipairs(peers)
-    do
+    assert(ok, err)
+    foreachi(peers, function(peer)
       peer.upstream = u
       if u.healthcheck or ctx.check_all then
-        local _, disabled = ctx.get_dict_key("disabled", peer)
-        local _, down = ctx.get_dict_key("down", peer, true)
+        local disabled = peer_disabled(ctx, peer) 
+        local down = ctx.dict:get_dict_key("down", peer, true)
+        ctx:debug("init state upstream=", u.name, ", peer=", peer.name,
+                  " disabled=", disabled, " down=", down)
         if not disabled and not down then
-          local ok, succ = ctx.get_dict_key("succ", peer, 0)
-          if ok and succ >= (u.healthcheck or ctx.healthcheck).rise then
+          local succ = ctx.dict:get_dict_key("succ", peer, 0)
+          if succ and succ >= (u.healthcheck or ctx.healthcheck).rise then
+            ctx:debug("init state upstream=", u.name, ", peer=", peer.name, " up")
             ctx.set_peer_up(u.name, peer)
           end
         else
+          ctx:debug("init state upstream=", u.name, ", peer=", peer.name, " down")
           ctx.set_peer_down(u.name, peer)
         end
       end
-    end
-  end
+    end)
+  end)
 end
 
-local function initialize(self)
-  local opts = self.opts
+local function gen_peer_key(prefix, peer)
+  return prefix .. ":" .. peer.upstream.name .. ":" .. peer.name
+end
 
-  self.ctx = {
+local dict_class = {}
+
+function dict_class:set_dict_key(prefix, peer, val)
+  local key = gen_peer_key(prefix, peer)
+  return assert(self.shm:set(key, val))
+end
+
+function dict_class:get_dict_key(prefix, peer, default)
+  local key = gen_peer_key(prefix, peer)
+  local val = self.shm:get(key)
+  if val ~= nil then
+    return val
+  end
+  return default
+end
+
+function dict_class:incr_dict_key(prefix, peer)
+  local key = gen_peer_key(prefix, peer)
+  return assert(self.shm:incr(key, 1, 0))
+end
+
+function dict_class:delete_dict_key(prefix, peer)
+  self.shm:delete(gen_peer_key(prefix, peer))
+end
+
+local function initialize(opts)
+  local ctx = {
     upstream_type = opts.upstream_type,
 
     healthcheck = opts.healthcheck or {
@@ -430,143 +449,161 @@ local function initialize(self)
       rise = 1,
       timeout = 1000
     },
+
     check_all = opts.check_all,
-    dict      = ngx.shared[opts.shm],
     type      = opts.type or "tcp",
-    shm       = opts.shm,
 
     concurrency = opts.concurrency or 100,
 
-    set_peer_down = self.tab.set_peer_down,
-    set_peer_up   = self.tab.set_peer_up,
-    get_peers     = self.tab.get_peers,
-    get_upstreams = self.tab.get_upstreams,
-
-    set_dict_key = function(prefix, peer, val)
-      local key = gen_peer_key(self.ctx.upstream_type .. ":" .. prefix .. ":", peer)
-      local ok, err = self.ctx.dict:set(key, val)
-      if not ok then
-        errlog("failed to set key " .. key .. ", error: ", err)
-      end
-    end,
-
-    get_dict_key = function(prefix, peer, default)
-      local key = gen_peer_key(self.ctx.upstream_type .. ":" .. prefix .. ":", peer)
-      local val, err = self.ctx.dict:get(key)
-      if val == nil then
-        if err then
-          errlog("failed to get key " .. key .. ", error: ", err)
-          return false, nil
-        end
-        val = default
-      end
-      return true, val
-    end,
-
-    incr_dict_key = function(prefix, peer)
-      local key = gen_peer_key(self.ctx.upstream_type .. ":" .. prefix .. ":", peer)
-      local val, err = self.ctx.dict:incr(key, 1, 0)
-      if not val then
-        errlog("failed to increment key " .. key .. ", error: ", err)
-      end
-      return val
-    end
+    set_peer_down = opts.tab.set_peer_down,
+    set_peer_up   = opts.tab.set_peer_up,
+    get_peers     = opts.tab.get_peers,
+    get_upstreams = opts.tab.get_upstreams
   }
 
-  local ctx = self.ctx
+  ctx.dict = setmetatable({
+    shm = assert(ngx.shared.healthcheck, "lua_shared_dict 'healthcheck' is not found"),
+    upstream_type = ctx.upstream_type
+  }, {
+    __index = dict_class
+  })
 
   if not ctx.healthcheck.interval then
     ctx.healthcheck.interval = ((opts.interval or 10) > 0) and (opts.interval or 10) or 10
   end
 
-  if not ctx.shm then
-    return nil, "'shm' option required"
-  end
+  assert(ctx.type == "http" or ctx.type == "tcp", "'http' or 'tcp' type can be used")
 
-  if not ctx.dict then
-    return nil, "shm '" .. tostring(ctx.shm) .. "' not found"
-  end
+  ctx.mutex = assert(lock:new("healthcheck"))
 
-  if ctx.type ~= "http" and ctx.type ~= "tcp" then
-    return nil, "'http' and 'tcp' type can be used"
-  end
-
-  local ok, err
-  ctx.mutex, err = lock:new(ctx.shm)
-  if not ctx.mutex then
-    return nil, "failed to create timer: " .. err
-  end
-
-  return self
+  return ctx
 end
 
 --- API ---------------------------------------------------------------------------------------
-
-function _M.new(upstream_type, opts, tab)
-  local hc = {}
-
-  hc.opts = opts
-  hc.opts.upstream_type = upstream_type
-  hc.tab = tab
-
-  local mt = { __index = {
-    start = function(self)
-      init_down_state(self.ctx)
-      return ngx.timer.at(0, check, self.ctx)
-    end,
-    stop = function(self)
-      self.ctx.stop = true
-    end,
-    upstream_type = _M.upstream_type
-  } }
-
-  return initialize(setmetatable(hc, mt))
-end
-
-function _M.successes(upstream_type, dict, u, peer)
-  peer.upstream = { name = u }
-  local val, _ = dict:get(gen_peer_key(upstream_type .. ":g_successes:", peer))
-  if not val then
-    val = "-"
-  end
-  return val
-end
-
-function _M.fails(upstream_type, dict, u, peer)
-  peer.upstream = { name = u }
-  local val, _ = dict:get(gen_peer_key(upstream_type .. ":g_fails:", peer))
-  if not val then
-    val = "-"
-  end
-  return val
-end
-
-function _M.upstream_type(self)
-  return self.ctx.upstream_type
-end
 
 function _M.enable_debug()
   debug_enabled = true
 end
 
-function _M.disable_peer(upstream_type, dict, u, peer_name)
-  if u and peer_name then
-    local peer = {
-      name = peer_name,
-      upstream = { name = u }
-    }
-    dict:set(gen_peer_key(upstream_type .. ":disabled:", peer), 1)
+local healthcheck_class = {}
+
+function healthcheck_class:warn(...)
+  ngx.log(ngx.WARN, "[", self.upstream_type, "] healthcheck: ", ...)
+end
+
+function healthcheck_class:info(...)
+  ngx.log(ngx.INFO, "[", self.upstream_type, "] healthcheck: ", ...)
+end
+
+function healthcheck_class:errlog(...)
+  ngx.log(ngx.ERR, "[", self.upstream_type, "] healthcheck: ", ...)
+end
+
+function healthcheck_class:debug(...)
+  if debug_enabled then
+    ngx.log(ngx.DEBUG, "[", self.upstream_type, "] healthcheck: ", ...)
   end
 end
 
-function _M.enable_peer(upstream_type, dict, u, peer_name)
+function healthcheck_class:start()
+  self:debug("start")
+  init_state(self)
+  return ngx.timer.at(0, check, self)
+end
+
+function healthcheck_class:stop()
+  self:debug("stop")
+  self.stop_flag = true
+end
+
+function healthcheck_class:upstream_type()
+  return self.ctx.upstream_type
+end
+
+function healthcheck_class:successes(u, peer)
+  peer.upstream = { name = u }
+  return self.dict:get_dict_key("g_successes", peer) or "-"
+end
+
+function healthcheck_class:fails(u, peer)
+  peer.upstream = { name = u }
+  return self.dict:get_dict_key("g_fails", peer) or "-"
+end
+
+function healthcheck_class:upstream_type()
+  return self.upstream_type
+end
+
+function healthcheck_class:disable_peer(u, peer_name)
   if u and peer_name then
-    local peer = {
+    self:debug("disable peer upstream=", u, " peer=", peer_name)
+    self.dict:set_dict_key("disabled", {
       name = peer_name,
       upstream = { name = u }
-    }
-    dict:delete(gen_peer_key(upstream_type .. ":disabled:", peer))
+    }, true)
   end
+end
+
+function healthcheck_class:enable_peer(u, peer_name)
+  if u and peer_name then
+    self:debug("enable peer upstream=", u, " peer=", peer_name)
+    self.dict:delete_dict_key("disabled", {
+      name = peer_name,
+      upstream = { name = u }
+    })
+  end
+end
+
+function healthcheck_class:disable_ip(ip)
+  if not ip then
+    return
+  end
+
+  self:debug("disable ip=", ip)
+
+  self.dict:set_dict_key("disabled", {
+    name = ip,
+    upstream = { name = "*" }
+  }, true)
+
+  local ok, upstreams, err = self.get_upstreams()
+  assert(ok, err)
+
+  foreachi(upstreams, function(u)
+    local ok, peers, err = self.get_peers(u.name)
+    assert(ok, err)
+
+    foreachi(peers, function(peer)
+      local peer_ip = peer.name:match("^(.+):%d+$")
+
+      if peer_ip and peer_ip == ip then
+        self:info("disable ip: upstream=", u.name, " peer=", peer.name)
+        peer.upstream = u
+        set_peer_state_globally(self, peer, state_down(self))
+      end
+    end)
+  end)
+end
+
+function healthcheck_class:enable_ip(ip)
+  if not ip then
+    return
+  end
+
+  self:debug("enable ip=", ip)
+
+  self.dict:delete_dict_key("disabled", {
+    name = ip,
+    upstream = { name = "*" }
+  })
+end
+
+function _M.new(upstream_type, opts, tab)
+  opts.upstream_type = upstream_type
+  opts.tab = tab 
+  return setmetatable(initialize(opts), {
+    __index = healthcheck_class
+  })
 end
 
 return _M
