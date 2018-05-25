@@ -160,7 +160,7 @@ ngx_dynamic_upstream_lua_create_response(ngx_http_upstream_rr_peers_t *primary, 
 {
     ngx_http_upstream_rr_peer_t  *peer;
     ngx_http_upstream_rr_peers_t *peers, *backup;
-    int                           size = 0, n, i = 1;
+    int                           i = 1;
 
     backup = primary->next;
 
@@ -168,60 +168,38 @@ ngx_dynamic_upstream_lua_create_response(ngx_http_upstream_rr_peers_t *primary, 
         ngx_http_upstream_rr_peers_rlock(primary);
     }
 
-    if (flags & PRIMARY) {
-        size += primary->number;
-    }
-    if (flags & BACKUP && backup) {
-        size += backup->number;
-    }
-
     lua_newtable(L);
-    lua_createtable(L, size, 0);
 
     for (peers = primary; peers; peers = peers->next) {
         if ( (flags & PRIMARY && peers == primary) || (flags & BACKUP && peers == backup) ) {
             for (peer = peers->peer; peer; peer = peer->next, ++i) {
-                n = 7;
+                lua_newtable(L);
 
-                if (peer->down) {
-                    n++;
-                }
-
-                lua_createtable(L, 0, n);
-
-                lua_pushliteral(L, "name");
                 lua_pushlstring(L, (char *) peer->name.data,
                                             peer->name.len);
-                lua_rawset(L, -3);
+                lua_setfield(L, -2, "name");
 
-                lua_pushliteral(L, "weight");
                 lua_pushinteger(L, (lua_Integer) peer->weight);
-                lua_rawset(L, -3);
+                lua_setfield(L, -2, "weight");
 
-                lua_pushliteral(L, "max_conns");
                 lua_pushinteger(L, (lua_Integer) peer->max_conns);
-                lua_rawset(L, -3);
+                lua_setfield(L, -2, "max_conns");
 
-                lua_pushliteral(L, "conns");
                 lua_pushinteger(L, (lua_Integer) peer->conns);
-                lua_rawset(L, -3);
+                lua_setfield(L, -2, "conns");
 
-                lua_pushliteral(L, "max_fails");
                 lua_pushinteger(L, (lua_Integer) peer->max_fails);
-                lua_rawset(L, -3);
+                lua_setfield(L, -2, "max_fails");
 
-                lua_pushliteral(L, "fail_timeout");
                 lua_pushinteger(L, (lua_Integer) peer->fail_timeout);
-                lua_rawset(L, -3);
+                lua_setfield(L, -2, "fail_timeout");
 
-                lua_pushliteral(L, "backup");
                 lua_pushboolean(L, peers != primary);
-                lua_rawset(L, -3);
+                lua_setfield(L, -2, "backup");
 
                 if (peer->down) {
-                    lua_pushliteral(L, "down");
                     lua_pushboolean(L, 1);
-                    lua_rawset(L, -3);
+                    lua_setfield(L, -2, "down");
                 }
 
                 lua_rawseti(L, -2, i);
@@ -385,147 +363,101 @@ static void
 ngx_http_dynamic_upstream_lua_push_healthcheck(lua_State *L, ngx_http_upstream_srv_conf_t *uscf)
 {
     ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf;
-    int                                       n = 4;
     ngx_uint_t                                i;
 
     ucscf = ngx_http_get_dynamic_upstream_lua_srv_conf(uscf);
 
     if (ucscf == NULL || ucscf->data == NULL || ucscf->data->type.data == NULL) {
-        goto empty;
+        lua_pushnil(L);
+        return;
     }
 
     ngx_shmtx_lock(&ucscf->shpool->mutex);
 
-    n += ucscf->data->interval != NGX_CONF_UNSET_UINT;
-    n += ucscf->data->request_uri.len != NGX_CONF_UNSET_UINT;
+    lua_newtable(L);
 
-    lua_pushliteral(L, "healthcheck");
-    lua_createtable(L, 0, n);
+    lua_pushlstring(L, (char *) ucscf->data->type.data, ucscf->data->type.len);
+    lua_setfield(L, -2, "typ");
 
-    lua_pushliteral(L, "typ");
-    lua_pushlstring(L, (char *) ucscf->data->type.data,
-                                ucscf->data->type.len);
-    lua_rawset(L, -3);
-
-    lua_pushliteral(L, "fall");
     lua_pushinteger(L, (lua_Integer) ucscf->data->fall);
-    lua_rawset(L, -3);
+    lua_setfield(L, -2, "fall");
 
-    lua_pushliteral(L, "rise");
     lua_pushinteger(L, (lua_Integer) ucscf->data->rise);
-    lua_rawset(L, -3);
+    lua_setfield(L, -2, "rise");
 
-    lua_pushliteral(L, "timeout");
     lua_pushinteger(L, (lua_Integer) ucscf->data->timeout);
-    lua_rawset(L, -3);
+    lua_setfield(L, -2, "timeout");
 
     if (ucscf->data->interval != NGX_CONF_UNSET_UINT) {
-        lua_pushliteral(L, "interval");
         lua_pushinteger(L, (lua_Integer) ucscf->data->interval);
-        lua_rawset(L, -3);
+        lua_setfield(L, -2, "interval");
     }
 
     if (ucscf->data->request_uri.len != 0) {
-        n = 2;
+        lua_newtable(L);
+
+        lua_pushlstring(L, (char *) ucscf->data->request_uri.data,
+                                    ucscf->data->request_uri.len);
+        lua_setfield(L, -2, "uri");
+
+        lua_pushlstring(L, (char *) ucscf->data->request_method.data,
+                                    ucscf->data->request_method.len);
+        lua_setfield(L, -2, "method");
 
         if (ucscf->data->request_headers) {
-          ++n;
+            lua_newtable(L);
+
+            for (i = 0; i < ucscf->data->request_headers_count; ++i) {
+                lua_pushlstring(L, (char *) ucscf->data->request_headers[i].name.data,
+                                            ucscf->data->request_headers[i].name.len);
+                lua_pushlstring(L, (char *) ucscf->data->request_headers[i].value.data,
+                                            ucscf->data->request_headers[i].value.len);
+                lua_rawset(L, -3);
+            }
+
+            lua_setfield(L, -2, "headers");
         }
+
         if (ucscf->data->request_body.len != 0) {
-          ++n;
+            lua_pushlstring(L, (char *) ucscf->data->request_body.data,
+                                        ucscf->data->request_body.len);
+            lua_setfield(L, -2, "body");
         }
+
         if (ucscf->data->response_codes || ucscf->data->response_body.len != 0) {
-          ++n;
+            lua_newtable(L);
+
+            if (ucscf->data->response_codes) {
+                lua_newtable(L);
+
+                for (i = 0; i < ucscf->data->response_codes_count; ++i) {
+                    lua_pushinteger(L, (lua_Integer) ucscf->data->response_codes[i]);
+                    lua_rawseti(L, -2, i + 1);
+                }
+
+                lua_setfield(L, -2, "codes");
+            }
+
+            if (ucscf->data->response_body.len != 0) {
+                lua_pushlstring(L, (char *) ucscf->data->response_body.data,
+                                            ucscf->data->response_body.len);
+                lua_setfield(L, -2, "body");
+            }
+
+            lua_setfield(L, -2, "expected");
         }
 
-        lua_pushliteral(L, "command");
-        lua_createtable(L, 0, n);
-
-        {
-            lua_pushliteral(L, "uri");
-            lua_pushlstring(L, (char *) ucscf->data->request_uri.data,
-                                        ucscf->data->request_uri.len);
-            lua_rawset(L, -3);
-
-            lua_pushliteral(L, "method");
-            lua_pushlstring(L, (char *) ucscf->data->request_method.data,
-                                        ucscf->data->request_method.len);
-            lua_rawset(L, -3);
-
-            if (ucscf->data->request_headers) {
-                lua_pushliteral(L, "headers");
-                lua_createtable(L, 0, ucscf->data->request_headers_count);
-
-                for (i = 0; i < ucscf->data->request_headers_count; ++i) {
-                    lua_pushlstring(L, (char *) ucscf->data->request_headers[i].name.data,
-                                                ucscf->data->request_headers[i].name.len);
-                    lua_pushlstring(L, (char *) ucscf->data->request_headers[i].value.data,
-                                                ucscf->data->request_headers[i].value.len);
-                    lua_rawset(L, -3);
-                }
-
-                lua_rawset(L, -3);
-            }
-
-            if (ucscf->data->request_body.len != 0) {
-                lua_pushliteral(L, "body");
-                lua_pushlstring(L, (char *) ucscf->data->request_body.data,
-                                            ucscf->data->request_body.len);
-                lua_rawset(L, -3);
-            }
-
-            if (ucscf->data->response_codes || ucscf->data->response_body.len != 0) {
-                n = 0;
-                n = n + (ucscf->data->response_codes ? 1 : 0);
-                n = n + (ucscf->data->response_body.len != 0 ? 1 : 0);
-
-                lua_pushliteral(L, "expected");
-                lua_createtable(L, 0, n);
-
-                if (ucscf->data->response_codes) {
-                    lua_pushliteral(L, "codes");
-                    lua_createtable(L, ucscf->data->response_codes_count, 0);
-
-                    for (i = 0; i < ucscf->data->response_codes_count; ++i) {
-                        lua_pushinteger(L, (lua_Integer) ucscf->data->response_codes[i]);
-                        lua_rawseti(L, -2, i + 1);
-                    }
-
-                    lua_rawset(L, -3);
-                }
-
-                if (ucscf->data->response_body.len != 0) {
-                    lua_pushliteral(L, "body");
-                    lua_pushlstring(L, (char *) ucscf->data->response_body.data,
-                                                ucscf->data->response_body.len);
-                    lua_rawset(L, -3);
-                }
-
-                lua_rawset(L, -3);
-            }
-        }
-
-        lua_rawset(L, -3);
+        lua_setfield(L, -2, "command");
     }
 
-    lua_rawset(L, -3);
-
     ngx_shmtx_unlock(&ucscf->shpool->mutex);
-
-    return;
-
-empty:
-
-    lua_pushliteral(L, "healthcheck");
-    lua_pushnil(L);
-    lua_rawset(L, -3);
 }
 
 
 static int
 ngx_http_dynamic_upstream_lua_get_healthcheck(lua_State * L)
 {
-    ngx_uint_t                    i, j, count = 0;
+    ngx_uint_t                    i, j;
     ngx_http_upstream_srv_conf_t  **uscfp, *uscf;
     ngx_http_upstream_main_conf_t *umcf;
 
@@ -538,15 +470,7 @@ ngx_http_dynamic_upstream_lua_get_healthcheck(lua_State * L)
 
     lua_pushboolean(L, 1);
 
-    for (i = 0; i < umcf->upstreams.nelts; i++) {
-        uscf = uscfp[i];
-        if (uscf->srv_conf != NULL) {
-            ++count;
-        }
-    }
-
     lua_newtable(L);
-    lua_createtable(L, count, 0);
 
     umcf  = ngx_http_lua_upstream_get_upstream_main_conf(L);
     uscfp = umcf->upstreams.elts;
@@ -555,21 +479,19 @@ ngx_http_dynamic_upstream_lua_get_healthcheck(lua_State * L)
         uscf = uscfp[i];
 
         if (uscf->srv_conf != NULL) {
-            lua_createtable(L, 0, 2);
+            lua_newtable(L);
 
-            lua_pushliteral(L, "name");
             lua_pushlstring(L, (char *) uscf->host.data, uscf->host.len);
-            lua_rawset(L, -3);
+            lua_setfield(L, -2, "name");
 
             ngx_http_dynamic_upstream_lua_push_healthcheck(L, uscf);
+            lua_setfield(L, -2, "healthcheck");
 
             lua_rawseti(L, -2, j++);
         }
     }
 
-    lua_pushnil(L);
-
-    return 3;
+    return 2;
 }
 
 
