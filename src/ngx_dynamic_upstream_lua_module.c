@@ -200,8 +200,11 @@ ngx_http_init_shm_zone(ngx_shm_zone_t *shm_zone, void *data)
         return NGX_OK;
     }
 
-    ucscf->data = ngx_slab_calloc(ucscf->shpool, sizeof(ngx_http_upstream_check_opts_t));
+    ngx_shmtx_lock(&ucscf->shpool->mutex);
+
+    ucscf->data = ngx_slab_calloc_locked(ucscf->shpool, sizeof(ngx_http_upstream_check_opts_t));
     if (ucscf->data == NULL) {
+        ngx_shmtx_unlock(&ucscf->shpool->mutex);
         return NGX_ERROR;
     }
 
@@ -232,6 +235,8 @@ ngx_http_init_shm_zone(ngx_shm_zone_t *shm_zone, void *data)
 
     rc = rc && (ucscf->data->request_headers || NULL == ucscf->conf->request_headers);
     rc = rc && (ucscf->data->response_codes  || NULL == ucscf->conf->response_codes);
+
+    ngx_shmtx_unlock(&ucscf->shpool->mutex);
 
     if (!rc) {
         return NGX_ERROR;
@@ -473,7 +478,7 @@ ngx_http_dynamic_upstream_lua_check_response_codes(ngx_conf_t *cf, ngx_command_t
     if (ucscf == NULL) {
         return NGX_CONF_ERROR;
     }
-    
+
     value = cf->args->elts;
 
     ucscf->conf->response_codes_count = cf->args->nelts - 1;

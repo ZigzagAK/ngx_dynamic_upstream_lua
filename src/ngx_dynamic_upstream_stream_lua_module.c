@@ -173,7 +173,7 @@ ngx_stream_dynamic_upstream_write_filter(ngx_stream_session_t *s, ngx_chain_t *i
     }
 
     if (uscf->srv_conf == NULL) {
-    	goto skip;
+        goto skip;
     }
 
     ucscf = ngx_stream_conf_upstream_srv_conf(uscf, ngx_stream_dynamic_upstream_lua_module);
@@ -303,8 +303,11 @@ ngx_stream_init_shm_zone(ngx_shm_zone_t *shm_zone, void *data)
         return NGX_OK;
     }
 
-    ucscf->data = ngx_slab_calloc(ucscf->shpool, sizeof(ngx_stream_upstream_check_opts_t));
+    ngx_shmtx_lock(&ucscf->shpool->mutex);
+
+    ucscf->data = ngx_slab_calloc_locked(ucscf->shpool, sizeof(ngx_stream_upstream_check_opts_t));
     if (ucscf->data == NULL) {
+        ngx_shmtx_unlock(&ucscf->shpool->mutex);
         return NGX_ERROR;
     }
 
@@ -316,10 +319,11 @@ ngx_stream_init_shm_zone(ngx_shm_zone_t *shm_zone, void *data)
     ucscf->data->request_body   = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->request_body);
     ucscf->data->response_body  = ngx_shm_copy_string(ucscf->shpool, ucscf->conf->response_body);
 
-
     rc = rc && (ucscf->data->upstream.data      || NULL == ucscf->conf->upstream.data);
     rc = rc && (ucscf->data->request_body.data  || NULL == ucscf->conf->request_body.data);
     rc = rc && (ucscf->data->response_body.data || NULL == ucscf->conf->response_body.data);
+
+    ngx_shmtx_unlock(&ucscf->shpool->mutex);
 
     if (!rc) {
         return NGX_ERROR;

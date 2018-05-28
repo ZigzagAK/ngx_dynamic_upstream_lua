@@ -90,7 +90,7 @@ ngx_shm_copy_pairs(ngx_slab_pool_t *shpool, ngx_pair_t *src, ngx_uint_t count)
     ngx_pair_t *pairs = NULL;
     ngx_uint_t    i;
     if (count) {
-        pairs = ngx_slab_calloc(shpool, count * sizeof(ngx_pair_t));
+        pairs = ngx_slab_calloc_locked(shpool, count * sizeof(ngx_pair_t));
         if (pairs != NULL) {
             for (i = 0; i < count; ++i) {
                 pairs[i].name = ngx_shm_copy_string(shpool, src[i].name);
@@ -110,7 +110,7 @@ ngx_shm_copy_uint_vec(ngx_slab_pool_t *shpool, ngx_uint_t *src, ngx_uint_t count
 {
     ngx_uint_t *codes = NULL;
     if (count) {
-        codes = ngx_slab_calloc(shpool, count * sizeof(ngx_uint_t));
+        codes = ngx_slab_calloc_locked(shpool, count * sizeof(ngx_uint_t));
         if (codes != NULL) {
             ngx_memcpy(codes, src, count * sizeof(ngx_uint_t));
         }
