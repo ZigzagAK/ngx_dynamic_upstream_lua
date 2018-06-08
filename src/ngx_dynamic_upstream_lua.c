@@ -813,6 +813,13 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
     ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->request_body.data);
     ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->response_body.data);
     ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->response_codes);
+
+    ucscf->data->type.len = 0;
+    ucscf->data->request_uri.len = 0;
+    ucscf->data->request_method.len = 0;
+    ucscf->data->request_body.len = 0;
+    ucscf->data->response_body.len = 0;
+
     if (ucscf->data->request_headers) {
         for (i = 0; i < ucscf->data->request_headers_count; ++i) {
             ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->request_headers[i].name.data);

@@ -731,6 +731,9 @@ ngx_stream_dynamic_upstream_lua_update_healthcheck(lua_State *L)
     ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->request_body.data);
     ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->response_body.data);
 
+    ucscf->data->request_body.len = 0;
+    ucscf->data->response_body.len = 0;
+
     lua_getfield(L, 2, "fall");
     lua_getfield(L, 2, "rise");
     lua_getfield(L, 2, "timeout");
