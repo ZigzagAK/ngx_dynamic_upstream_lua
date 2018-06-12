@@ -83,7 +83,7 @@ bbb=444
 --- request
     GET /test
 --- response_body
-backends http 1 1 1000 0
+backends http 1 1 1000 10
 /heartbeat GET
 
 
@@ -112,7 +112,7 @@ backends http 1 1 1000 0
 --- request
     GET /test
 --- response_body
-backends tcp 1 1 1000 0
+backends tcp 1 1 1000 10
 
 
 === TEST 4: healthcheck http defargs
@@ -140,7 +140,7 @@ backends tcp 1 1 1000 0
 --- request
     GET /test
 --- response_body
-backends tcp 1 1 1000 0
+backends tcp 1 1 1000 10
 
 
 === TEST 5: healthcheck stream
@@ -202,4 +202,4 @@ backends 2 1 1500 60 ping pong
 --- request
     GET /test
 --- response_body
-backends 1 1 1000 0
+backends 1 1 1000 10

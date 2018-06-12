@@ -50,9 +50,7 @@ ngx_int_t
 ngx_http_dynamic_upstream_lua_init(ngx_conf_t *cf)
 {
     if (ngx_http_lua_add_package_preload(cf, "ngx.dynamic_upstream",
-                                         ngx_http_dynamic_upstream_lua_create_module)
-        != NGX_OK)
-    {
+        ngx_http_dynamic_upstream_lua_create_module) != NGX_OK) {
         return NGX_ERROR;
     }
 
@@ -128,7 +126,7 @@ ngx_http_lua_upstream_get_upstream_main_conf(lua_State *L)
 
 
 static ngx_http_upstream_srv_conf_t *
-ngx_dynamic_upstream_get(lua_State * L, ngx_dynamic_upstream_op_t *op)
+ngx_dynamic_upstream_get(lua_State *L, ngx_dynamic_upstream_op_t *op)
 {
     ngx_uint_t                      i;
     ngx_http_upstream_srv_conf_t   *uscf, **uscfp;
@@ -140,8 +138,8 @@ ngx_dynamic_upstream_get(lua_State * L, ngx_dynamic_upstream_op_t *op)
     for (i = 0; i < umcf->upstreams.nelts; i++) {
         uscf = uscfp[i];
         if (op->upstream.len == uscf->host.len &&
-            ngx_strncmp(uscf->host.data, op->upstream.data, op->upstream.len) == 0)
-        {
+            ngx_strncmp(uscf->host.data, op->upstream.data,
+                        op->upstream.len) == 0) {
             return uscf;
         }
     }
@@ -156,7 +154,8 @@ static const int LOCK    = 4;
 
 
 static void
-ngx_dynamic_upstream_lua_create_response(ngx_http_upstream_rr_peers_t *primary, lua_State * L, int flags)
+ngx_dynamic_upstream_lua_create_response(ngx_http_upstream_rr_peers_t *primary,
+    lua_State *L, int flags)
 {
     ngx_http_upstream_rr_peer_t  *peer;
     ngx_http_upstream_rr_peers_t *peers, *backup;
@@ -214,7 +213,8 @@ ngx_dynamic_upstream_lua_create_response(ngx_http_upstream_rr_peers_t *primary, 
 
 
 static void
-ngx_http_dynamic_upstream_lua_op_defaults(lua_State * L, ngx_dynamic_upstream_op_t *op, int operation)
+ngx_http_dynamic_upstream_lua_op_defaults(lua_State *L,
+    ngx_dynamic_upstream_op_t *op, int operation)
 {
     ngx_memzero(op, sizeof(ngx_dynamic_upstream_op_t));
 
@@ -233,7 +233,7 @@ ngx_http_dynamic_upstream_lua_op_defaults(lua_State * L, ngx_dynamic_upstream_op
 
 
 static int
-ngx_http_dynamic_upstream_lua_error(lua_State * L, const char *error)
+ngx_http_dynamic_upstream_lua_error(lua_State *L, const char *error)
 {
     lua_pushboolean(L, 0);
     lua_pushnil(L);
@@ -243,7 +243,8 @@ ngx_http_dynamic_upstream_lua_error(lua_State * L, const char *error)
 
 
 static int
-ngx_http_dynamic_upstream_lua_op(lua_State * L, ngx_dynamic_upstream_op_t *op, int flags)
+ngx_http_dynamic_upstream_lua_op(lua_State *L, ngx_dynamic_upstream_op_t *op,
+    int flags)
 {
     ngx_int_t                       rc;
     ngx_http_upstream_srv_conf_t   *uscf;
@@ -251,23 +252,27 @@ ngx_http_dynamic_upstream_lua_op(lua_State * L, ngx_dynamic_upstream_op_t *op, i
 
     uscf = ngx_dynamic_upstream_get(L, op);
     if (uscf == NULL) {
-        return ngx_http_dynamic_upstream_lua_error(L, "Upstream not found");
+        return ngx_http_dynamic_upstream_lua_error(L, "upstream not found");
     }
 
     if (op->op & (NGX_DYNAMIC_UPSTEAM_OP_ADD | NGX_DYNAMIC_UPSTEAM_OP_REMOVE)) {
         if (uscf->shm_zone == NULL) {
-            return ngx_http_dynamic_upstream_lua_error(L, "Shared zone segment is not defined in upstream");
+            return ngx_http_dynamic_upstream_lua_error(L,
+                "shared zone segment is not defined in upstream");
         }
     }
 
     if (op->op != NGX_DYNAMIC_UPSTEAM_OP_LIST) {
         if (flags & LOCK) {
-            rc = ngx_dynamic_upstream_op(ngx_http_lua_get_request(L)->connection->log, op, uscf);
+            rc = ngx_dynamic_upstream_op(ngx_http_lua_get_request(L)->
+                connection->log, op, uscf);
             if (rc != NGX_OK) {
-                return ngx_http_dynamic_upstream_lua_error(L, "Internal server error");
+                return ngx_http_dynamic_upstream_lua_error(L,
+                    "internal error");
             }
         } else {
-            return ngx_http_dynamic_upstream_lua_error(L, "Locked operations can be used only with readonly functions");
+            return ngx_http_dynamic_upstream_lua_error(L,
+                "locked operations can be used only with readonly functions");
         }
     }
 
@@ -287,11 +292,11 @@ ngx_http_dynamic_upstream_lua_op(lua_State * L, ngx_dynamic_upstream_op_t *op, i
 
 
 static int
-ngx_http_dynamic_upstream_lua_get_upstreams(lua_State * L)
+ngx_http_dynamic_upstream_lua_get_upstreams(lua_State *L)
 {
-    ngx_uint_t                    i, j, count = 0;
+    ngx_uint_t                      i, j, count = 0;
     ngx_http_upstream_srv_conf_t  **uscfp, *uscf;
-    ngx_http_upstream_main_conf_t *umcf;
+    ngx_http_upstream_main_conf_t  *umcf;
 
     if (lua_gettop(L) != 0) {
         return ngx_http_dynamic_upstream_lua_error(L, "no argument expected");
@@ -310,7 +315,6 @@ ngx_http_dynamic_upstream_lua_get_upstreams(lua_State * L)
     }
 
     lua_newtable(L);
-    lua_createtable(L, count, 0);
 
     umcf  = ngx_http_lua_upstream_get_upstream_main_conf(L);
     uscfp = umcf->upstreams.elts;
@@ -323,13 +327,11 @@ ngx_http_dynamic_upstream_lua_get_upstreams(lua_State * L)
         }
     }
 
-    lua_pushnil(L);
-
-    return 3;
+    return 2;
 }
 
 
-extern ngx_str_t shared_zone_http_prefix;
+extern ngx_str_t zone_http_prefix;
 
 
 static ngx_http_dynamic_upstream_lua_srv_conf_t *
@@ -337,37 +339,39 @@ ngx_http_get_dynamic_upstream_lua_srv_conf(ngx_http_upstream_srv_conf_t *uscf)
 {
     ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf;
 
-    ucscf = ngx_http_conf_upstream_srv_conf(uscf, ngx_http_dynamic_upstream_lua_module);
+    ucscf = ngx_http_conf_upstream_srv_conf(uscf,
+        ngx_http_dynamic_upstream_lua_module);
 
     if (ucscf->shm_zone == NULL) {
         ucscf->shm_zone = ngx_shared_memory_find(ngx_cycle,
-                                                 shared_zone_http_prefix,
-                                                 ucscf->conf->upstream,
-                                                 &ngx_http_dynamic_upstream_lua_module);
+            zone_http_prefix,
+            ucscf->conf->upstream,
+            &ngx_http_dynamic_upstream_lua_module);
+
         if (ucscf->shm_zone == NULL) {
             return NULL;
         }
     }
 
-    if (ucscf->shm_zone != NULL) {
-        ucscf->conf->upstream = uscf->host;
-        ucscf->data = ucscf->shm_zone->data;
-        ucscf->data->upstream = uscf->host;
-        ucscf->shpool = (ngx_slab_pool_t *) ucscf->shm_zone->shm.addr;
-    }
+    ucscf->conf->upstream = uscf->host;
+    ucscf->data = ucscf->shm_zone->data;
+    ucscf->data->upstream = uscf->host;
+    ucscf->shpool = (ngx_slab_pool_t *) ucscf->shm_zone->shm.addr;
 
     return ucscf;
 }
 
 static void
-ngx_http_dynamic_upstream_lua_push_healthcheck(lua_State *L, ngx_http_upstream_srv_conf_t *uscf)
+ngx_http_dynamic_upstream_lua_push_healthcheck(lua_State *L,
+    ngx_http_upstream_srv_conf_t *uscf)
 {
     ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf;
     ngx_uint_t                                i;
 
     ucscf = ngx_http_get_dynamic_upstream_lua_srv_conf(uscf);
 
-    if (ucscf == NULL || ucscf->data == NULL || ucscf->data->type.data == NULL) {
+    if (ucscf == NULL || ucscf->data == NULL || ucscf->data->type.data == NULL)
+    {
         lua_pushnil(L);
         return;
     }
@@ -379,19 +383,17 @@ ngx_http_dynamic_upstream_lua_push_healthcheck(lua_State *L, ngx_http_upstream_s
     lua_pushlstring(L, (char *) ucscf->data->type.data, ucscf->data->type.len);
     lua_setfield(L, -2, "typ");
 
-    lua_pushinteger(L, (lua_Integer) ucscf->data->fall);
+    lua_pushinteger(L, ucscf->data->fall);
     lua_setfield(L, -2, "fall");
 
-    lua_pushinteger(L, (lua_Integer) ucscf->data->rise);
+    lua_pushinteger(L, ucscf->data->rise);
     lua_setfield(L, -2, "rise");
 
-    lua_pushinteger(L, (lua_Integer) ucscf->data->timeout);
+    lua_pushinteger(L, ucscf->data->timeout);
     lua_setfield(L, -2, "timeout");
 
-    if (ucscf->data->interval != NGX_CONF_UNSET_UINT) {
-        lua_pushinteger(L, (lua_Integer) ucscf->data->interval);
-        lua_setfield(L, -2, "interval");
-    }
+    lua_pushinteger(L, ucscf->data->interval);
+    lua_setfield(L, -2, "interval");
 
     if (ucscf->data->request_uri.len != 0) {
         lua_newtable(L);
@@ -408,10 +410,12 @@ ngx_http_dynamic_upstream_lua_push_healthcheck(lua_State *L, ngx_http_upstream_s
             lua_newtable(L);
 
             for (i = 0; i < ucscf->data->request_headers_count; ++i) {
-                lua_pushlstring(L, (char *) ucscf->data->request_headers[i].name.data,
-                                            ucscf->data->request_headers[i].name.len);
-                lua_pushlstring(L, (char *) ucscf->data->request_headers[i].value.data,
-                                            ucscf->data->request_headers[i].value.len);
+                lua_pushlstring(L,
+                    (char *) ucscf->data->request_headers[i].name.data,
+                    ucscf->data->request_headers[i].name.len);
+                lua_pushlstring(L,
+                    (char *) ucscf->data->request_headers[i].value.data,
+                    ucscf->data->request_headers[i].value.len);
                 lua_rawset(L, -3);
             }
 
@@ -424,14 +428,15 @@ ngx_http_dynamic_upstream_lua_push_healthcheck(lua_State *L, ngx_http_upstream_s
             lua_setfield(L, -2, "body");
         }
 
-        if (ucscf->data->response_codes || ucscf->data->response_body.len != 0) {
+        if (ucscf->data->response_codes || ucscf->data->response_body.len != 0)
+        {
             lua_newtable(L);
 
             if (ucscf->data->response_codes) {
                 lua_newtable(L);
 
                 for (i = 0; i < ucscf->data->response_codes_count; ++i) {
-                    lua_pushinteger(L, (lua_Integer) ucscf->data->response_codes[i]);
+                    lua_pushinteger(L, ucscf->data->response_codes[i]);
                     lua_rawseti(L, -2, i + 1);
                 }
 
@@ -455,7 +460,7 @@ ngx_http_dynamic_upstream_lua_push_healthcheck(lua_State *L, ngx_http_upstream_s
 
 
 static int
-ngx_http_dynamic_upstream_lua_get_healthcheck(lua_State * L)
+ngx_http_dynamic_upstream_lua_get_healthcheck(lua_State *L)
 {
     ngx_uint_t                    i, j;
     ngx_http_upstream_srv_conf_t  **uscfp, *uscf;
@@ -496,67 +501,77 @@ ngx_http_dynamic_upstream_lua_get_healthcheck(lua_State * L)
 
 
 static int
-ngx_http_dynamic_upstream_lua_get_peers(lua_State * L)
+ngx_http_dynamic_upstream_lua_get_peers(lua_State *L)
 {
     ngx_dynamic_upstream_op_t op;
     if (lua_gettop(L) != 1) {
-        return ngx_http_dynamic_upstream_lua_error(L, "exactly one argument expected");
+        return ngx_http_dynamic_upstream_lua_error(L,
+            "exactly one argument expected");
     }
-    ngx_http_dynamic_upstream_lua_op_defaults(L, &op, NGX_DYNAMIC_UPSTEAM_OP_LIST);
+    ngx_http_dynamic_upstream_lua_op_defaults(L, &op,
+                                              NGX_DYNAMIC_UPSTEAM_OP_LIST);
     op.verbose = 1;
     return ngx_http_dynamic_upstream_lua_op(L, &op, PRIMARY|BACKUP|LOCK);
 }
 
 
 static int
-ngx_http_dynamic_upstream_lua_get_peers_locked(lua_State * L)
+ngx_http_dynamic_upstream_lua_get_peers_locked(lua_State *L)
 {
     ngx_dynamic_upstream_op_t op;
     if (lua_gettop(L) != 1) {
-        return ngx_http_dynamic_upstream_lua_error(L, "exactly one argument expected");
+        return ngx_http_dynamic_upstream_lua_error(L,
+            "exactly one argument expected");
     }
-    ngx_http_dynamic_upstream_lua_op_defaults(L, &op, NGX_DYNAMIC_UPSTEAM_OP_LIST);
+    ngx_http_dynamic_upstream_lua_op_defaults(L, &op,
+                                              NGX_DYNAMIC_UPSTEAM_OP_LIST);
     op.verbose = 1;
     return ngx_http_dynamic_upstream_lua_op(L, &op, PRIMARY|BACKUP);
 }
 
 
 static int
-ngx_http_dynamic_upstream_lua_get_primary_peers(lua_State * L)
+ngx_http_dynamic_upstream_lua_get_primary_peers(lua_State *L)
 {
     ngx_dynamic_upstream_op_t op;
     if (lua_gettop(L) != 1) {
-        return ngx_http_dynamic_upstream_lua_error(L, "exactly one argument expected");
+        return ngx_http_dynamic_upstream_lua_error(L,
+            "exactly one argument expected");
     }
-    ngx_http_dynamic_upstream_lua_op_defaults(L, &op, NGX_DYNAMIC_UPSTEAM_OP_LIST);
+    ngx_http_dynamic_upstream_lua_op_defaults(L, &op,
+                                              NGX_DYNAMIC_UPSTEAM_OP_LIST);
     op.verbose = 1;
     return ngx_http_dynamic_upstream_lua_op(L, &op, PRIMARY|LOCK);
 }
 
 
 static int
-ngx_http_dynamic_upstream_lua_get_backup_peers(lua_State * L)
+ngx_http_dynamic_upstream_lua_get_backup_peers(lua_State *L)
 {
     ngx_dynamic_upstream_op_t op;
     if (lua_gettop(L) != 1) {
-        return ngx_http_dynamic_upstream_lua_error(L, "exactly one argument expected");
+        return ngx_http_dynamic_upstream_lua_error(L,
+            "exactly one argument expected");
     }
-    ngx_http_dynamic_upstream_lua_op_defaults(L, &op, NGX_DYNAMIC_UPSTEAM_OP_LIST);
+    ngx_http_dynamic_upstream_lua_op_defaults(L, &op,
+                                              NGX_DYNAMIC_UPSTEAM_OP_LIST);
     op.verbose = 1;
     return ngx_http_dynamic_upstream_lua_op(L, &op, BACKUP|LOCK);
 }
 
 
 static int
-ngx_http_dynamic_upstream_lua_set_peer_down(lua_State * L)
+ngx_http_dynamic_upstream_lua_set_peer_down(lua_State *L)
 {
     ngx_dynamic_upstream_op_t op;
 
     if (lua_gettop(L) != 2) {
-        return ngx_http_dynamic_upstream_lua_error(L, "exactly 2 arguments expected");
+        return ngx_http_dynamic_upstream_lua_error(L,
+            "exactly 2 arguments expected");
     }
 
-    ngx_http_dynamic_upstream_lua_op_defaults(L, &op, NGX_DYNAMIC_UPSTEAM_OP_PARAM);
+    ngx_http_dynamic_upstream_lua_op_defaults(L, &op,
+                                              NGX_DYNAMIC_UPSTEAM_OP_PARAM);
 
     op.down = 1;
     op.op_param |= NGX_DYNAMIC_UPSTEAM_OP_PARAM_DOWN;
@@ -568,15 +583,17 @@ ngx_http_dynamic_upstream_lua_set_peer_down(lua_State * L)
 
 
 static int
-ngx_http_dynamic_upstream_lua_set_peer_up(lua_State * L)
+ngx_http_dynamic_upstream_lua_set_peer_up(lua_State *L)
 {
     ngx_dynamic_upstream_op_t op;
 
     if (lua_gettop(L) != 2) {
-        return ngx_http_dynamic_upstream_lua_error(L, "exactly 2 arguments expected");
+        return ngx_http_dynamic_upstream_lua_error(L,
+            "exactly 2 arguments expected");
     }
 
-    ngx_http_dynamic_upstream_lua_op_defaults(L, &op, NGX_DYNAMIC_UPSTEAM_OP_PARAM);
+    ngx_http_dynamic_upstream_lua_op_defaults(L, &op,
+                                              NGX_DYNAMIC_UPSTEAM_OP_PARAM);
 
     op.up = 1;
     op.op_param |= NGX_DYNAMIC_UPSTEAM_OP_PARAM_UP;
@@ -588,15 +605,17 @@ ngx_http_dynamic_upstream_lua_set_peer_up(lua_State * L)
 
 
 static int
-ngx_http_dynamic_upstream_lua_add_peer_impl(lua_State * L, int backup)
+ngx_http_dynamic_upstream_lua_add_peer_impl(lua_State *L, int backup)
 {
     ngx_dynamic_upstream_op_t op;
 
     if (lua_gettop(L) != 2) {
-        return ngx_http_dynamic_upstream_lua_error(L, "exactly 2 arguments expected");
+        return ngx_http_dynamic_upstream_lua_error(L,
+            "exactly 2 arguments expected");
     }
 
-    ngx_http_dynamic_upstream_lua_op_defaults(L, &op, NGX_DYNAMIC_UPSTEAM_OP_ADD);
+    ngx_http_dynamic_upstream_lua_op_defaults(L, &op,
+                                              NGX_DYNAMIC_UPSTEAM_OP_ADD);
 
     op.server.data = (u_char *) luaL_checklstring(L, 2, &op.server.len);
 
@@ -607,29 +626,31 @@ ngx_http_dynamic_upstream_lua_add_peer_impl(lua_State * L, int backup)
 
 
 static int
-ngx_http_dynamic_upstream_lua_add_primary_peer(lua_State * L)
+ngx_http_dynamic_upstream_lua_add_primary_peer(lua_State *L)
 {
     return ngx_http_dynamic_upstream_lua_add_peer_impl(L, 0);
 }
 
 
 static int
-ngx_http_dynamic_upstream_lua_add_backup_peer(lua_State * L)
+ngx_http_dynamic_upstream_lua_add_backup_peer(lua_State *L)
 {
     return ngx_http_dynamic_upstream_lua_add_peer_impl(L, 1);
 }
 
 
 static int
-ngx_http_dynamic_upstream_lua_remove_peer(lua_State * L)
+ngx_http_dynamic_upstream_lua_remove_peer(lua_State *L)
 {
     ngx_dynamic_upstream_op_t op;
 
     if (lua_gettop(L) != 2) {
-        return ngx_http_dynamic_upstream_lua_error(L, "exactly 2 arguments expected");
+        return ngx_http_dynamic_upstream_lua_error(L,
+            "exactly 2 arguments expected");
     }
 
-    ngx_http_dynamic_upstream_lua_op_defaults(L, &op, NGX_DYNAMIC_UPSTEAM_OP_REMOVE);
+    ngx_http_dynamic_upstream_lua_op_defaults(L, &op,
+                                              NGX_DYNAMIC_UPSTEAM_OP_REMOVE);
 
     op.server.data = (u_char *) luaL_checklstring(L, 2, &op.server.len);
 
@@ -638,7 +659,8 @@ ngx_http_dynamic_upstream_lua_remove_peer(lua_State * L)
 
 
 static int
-ngx_http_dynamic_upstream_lua_update_peer_parse_params(lua_State * L, ngx_dynamic_upstream_op_t *op)
+ngx_http_dynamic_upstream_lua_update_peer_parse_params(lua_State *L,
+    ngx_dynamic_upstream_op_t *op)
 {
     const char *key;
 
@@ -680,15 +702,17 @@ ngx_http_dynamic_upstream_lua_update_peer_parse_params(lua_State * L, ngx_dynami
 
 
 static int
-ngx_http_dynamic_upstream_lua_update_peer(lua_State * L)
+ngx_http_dynamic_upstream_lua_update_peer(lua_State *L)
 {
     ngx_dynamic_upstream_op_t op;
 
     if (lua_gettop(L) != 3 || !lua_istable(L, 3)) {
-        return ngx_http_dynamic_upstream_lua_error(L, "exactly 3 arguments expected");
+        return ngx_http_dynamic_upstream_lua_error(L,
+            "exactly 3 arguments expected");
     }
 
-    ngx_http_dynamic_upstream_lua_op_defaults(L, &op, NGX_DYNAMIC_UPSTEAM_OP_PARAM);
+    ngx_http_dynamic_upstream_lua_op_defaults(L, &op,
+                                              NGX_DYNAMIC_UPSTEAM_OP_PARAM);
 
     op.server.data = (u_char *) luaL_checklstring(L, 2, &op.server.len);
 
@@ -708,7 +732,7 @@ ngx_http_dynamic_upstream_lua_current_upstream(lua_State *L)
 
     r = ngx_http_lua_get_request(L);
     if (r == NULL) {
-        return ngx_http_dynamic_upstream_lua_error(L, "no request object found");
+        return ngx_http_dynamic_upstream_lua_error(L, "no request object");
     }
 
     us = r->upstream;
@@ -721,11 +745,11 @@ ngx_http_dynamic_upstream_lua_current_upstream(lua_State *L)
     if (uscf == NULL) {
         ucf = us->conf;
         if (ucf == NULL) {
-            return ngx_http_dynamic_upstream_lua_error(L, "no conf for upstream");
+            return ngx_http_dynamic_upstream_lua_error(L,"no upstream");
         }
         uscf = ucf->upstream;
         if (uscf == NULL) {
-            return ngx_http_dynamic_upstream_lua_error(L, "no srv conf for upstream");
+            return ngx_http_dynamic_upstream_lua_error(L, "no srv upstream");
         }
     }
 
@@ -756,9 +780,9 @@ lua_get_string(lua_State *L, ngx_slab_pool_t *shpool, int index)
 }
 
 
-static ngx_str_t type_http = { .data = (u_char *) "http", .len = 4 };
-static ngx_str_t type_tcp = { .data = (u_char *) "tcp", .len = 3 };
-static ngx_str_t http_GET = { .data = (u_char *) "GET", .len = 3 };
+static ngx_str_t type_HTTP = ngx_string("http");
+static ngx_str_t type_TCP = ngx_string("tcp");
+static ngx_str_t http_GET = ngx_string("GET");
 
 
 static int
@@ -768,7 +792,7 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
     ngx_http_dynamic_upstream_lua_srv_conf_t *ucscf = NULL;
     ngx_dynamic_upstream_op_t                 op;
     int                                       top = lua_gettop(L);
-    const char                               *error = "Unknown error", *s0, *s1;
+    const char                               *error = "unknown error", *s0, *s1;
     ngx_pair_t                               *header;
     ngx_array_t                              *headers;
     ngx_uint_t                               *code;
@@ -776,14 +800,17 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
     ngx_uint_t                                i;
     ngx_str_t                                 s;
     ngx_http_request_t                       *r;
+    ngx_http_upstream_check_opts_t           *sh;
+    ngx_slab_pool_t                          *shpool;
 
     r = ngx_http_lua_get_request(L);
     if (r == NULL) {
-        return ngx_http_dynamic_upstream_lua_error(L, "no request object found");
+        return ngx_http_dynamic_upstream_lua_error(L, "no request object");
     }
 
     if (top != 2 && !lua_istable(L, 2)) {
-        return ngx_http_dynamic_upstream_lua_error(L, "exactly 2 arguments expected");
+        return ngx_http_dynamic_upstream_lua_error(L,
+            "exactly 2 arguments expected");
     }
 
     op.upstream.data = (u_char *) luaL_checklstring(L, 1, &op.upstream.len);
@@ -794,66 +821,75 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
     }
 
     if (ucscf == NULL) {
-        return ngx_http_dynamic_upstream_lua_error(L, "Upstream not found");
+        return ngx_http_dynamic_upstream_lua_error(L, "upstream not found");
     }
 
-    ngx_shmtx_lock(&ucscf->shpool->mutex);
+    shpool = ucscf->shpool;
+
+    ngx_shmtx_lock(&shpool->mutex);
 
     if (ucscf->data == NULL) {
-        ucscf->data = ngx_slab_calloc(ucscf->shpool, sizeof(ngx_http_upstream_check_opts_t));
+        ucscf->data = ngx_slab_calloc(shpool,
+            sizeof(ngx_http_upstream_check_opts_t));
+
         if (ucscf->data == NULL) {
-            error = "Memory allocation error";
+            error = "no memory";
             goto error;
         }
     }
 
-    ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->type.data);
-    ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->request_uri.data);
-    ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->request_method.data);
-    ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->request_body.data);
-    ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->response_body.data);
-    ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->response_codes);
+    sh = ucscf->data;
 
-    ucscf->data->type.len = 0;
-    ucscf->data->request_uri.len = 0;
-    ucscf->data->request_method.len = 0;
-    ucscf->data->request_body.len = 0;
-    ucscf->data->response_body.len = 0;
+    ngx_safe_slab_free(shpool, (void **) &sh->type.data);
+    ngx_safe_slab_free(shpool, (void **) &sh->request_uri.data);
+    ngx_safe_slab_free(shpool, (void **) &sh->request_method.data);
+    ngx_safe_slab_free(shpool, (void **) &sh->request_body.data);
+    ngx_safe_slab_free(shpool, (void **) &sh->response_body.data);
+    ngx_safe_slab_free(shpool, (void **) &sh->response_codes);
 
-    if (ucscf->data->request_headers) {
-        for (i = 0; i < ucscf->data->request_headers_count; ++i) {
-            ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->request_headers[i].name.data);
-            ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->request_headers[i].value.data);
+    sh->type.len = 0;
+    sh->request_uri.len = 0;
+    sh->request_method.len = 0;
+    sh->request_body.len = 0;
+    sh->response_body.len = 0;
+
+    if (sh->request_headers) {
+        for (i = 0; i < sh->request_headers_count; ++i) {
+            ngx_safe_slab_free(shpool,
+                (void **) &sh->request_headers[i].name.data);
+            ngx_safe_slab_free(shpool,
+                (void **) &sh->request_headers[i].value.data);
         }
-        ngx_safe_slab_free(ucscf->shpool, (void **) &ucscf->data->request_headers);
-        ucscf->data->request_headers_count = 0;
+        ngx_safe_slab_free(shpool, (void **) &sh->request_headers);
     }
-    ucscf->data->response_codes_count = 0;
+
+    sh->response_codes_count = 0;
+    sh->request_headers_count = 0;
 
     lua_getfield(L, 2, "fall");
     lua_getfield(L, 2, "rise");
     lua_getfield(L, 2, "timeout");
     lua_getfield(L, 2, "interval");
 
-    ucscf->data->fall = lua_tointeger(L, -4);
-    ucscf->data->rise = lua_tointeger(L, -3);
-    ucscf->data->timeout = lua_tointeger(L, -2);
-    ucscf->data->interval = lua_tointeger(L, -1);
+    sh->fall = lua_tointeger(L, -4);
+    sh->rise = lua_tointeger(L, -3);
+    sh->timeout = lua_tointeger(L, -2);
+    sh->interval = lua_tointeger(L, -1);
 
-    if (ucscf->data->fall == 0) {
-        ucscf->data->fall = 1;
+    if (sh->fall == 0) {
+        sh->fall = 1;
     }
 
-    if (ucscf->data->rise == 0) {
-        ucscf->data->rise = 1;
+    if (sh->rise == 0) {
+        sh->rise = 1;
     }
 
-    if (ucscf->data->timeout == 0) {
-        ucscf->data->timeout = 1000;
+    if (sh->timeout == 0) {
+        sh->timeout = 1000;
     }
 
-    if (ucscf->data->interval == 0) {
-        ucscf->data->interval = 10;
+    if (sh->interval == 0) {
+        sh->interval = 10;
     }
 
     lua_pop(L, 4);
@@ -861,33 +897,33 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
     lua_getfield(L, 2, "command");
 
     if (!lua_istable(L, 3)) {
-        ucscf->data->type = ngx_shm_copy_string(ucscf->shpool, type_tcp);
+        sh->type = ngx_shm_copy_string(shpool, type_TCP);
     } else {
         lua_getfield(L, 3, "uri");
         lua_getfield(L, 3, "body");
 
         s0 = lua_tostring(L, -2);
-        ucscf->data->request_body = lua_get_string(L, ucscf->shpool, -1);
+        sh->request_body = lua_get_string(L, shpool, -1);
 
         lua_pop(L, 2);
 
         if (s0) {
-            ucscf->data->type = ngx_shm_copy_string(ucscf->shpool, type_http);
+            sh->type = ngx_shm_copy_string(shpool, type_HTTP);
             s1 = strchr(s0, ' ');
             if (s1 != NULL) {
 //              GET /
                 s.data = (u_char *) s0; s.len = s1 - s0;
-                ucscf->data->request_method = ngx_shm_copy_string(ucscf->shpool, s);
+                sh->request_method = ngx_shm_copy_string(shpool, s);
                 s.data = (u_char *) ++s1; s.len = strlen(s1);
-                ucscf->data->request_uri = ngx_shm_copy_string(ucscf->shpool, s);
+                sh->request_uri = ngx_shm_copy_string(shpool, s);
             } else {
 //              /
-                ucscf->data->request_method = ngx_shm_copy_string(ucscf->shpool, http_GET);
+                sh->request_method = ngx_shm_copy_string(shpool, http_GET);
                 s.data = (u_char *) s0; s.len = strlen(s0);
-                ucscf->data->request_uri = ngx_shm_copy_string(ucscf->shpool, s);
+                sh->request_uri = ngx_shm_copy_string(shpool, s);
             }
         } else {
-            ucscf->data->type = ngx_shm_copy_string(ucscf->shpool, type_tcp);
+            sh->type = ngx_shm_copy_string(shpool, type_TCP);
         }
 
         lua_getfield(L, 3, "headers");
@@ -899,7 +935,7 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
             headers = ngx_array_create(r->pool, 100, sizeof(ngx_pair_t));
             if (headers == NULL)
             {
-                error = "Memory allocation error";
+                error = "no memory";
                 goto error;
             }
 
@@ -908,31 +944,32 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
                 header = ngx_array_push(headers);
                 if (header == NULL)
                 {
-                    error = "Memory allocation error";
+                    error = "no memory";
                     goto error;
                 }
 
                 lua_pushvalue(L, -2);
 
-                header->name = lua_get_string(L, ucscf->shpool, -1);
-                header->value = lua_get_string(L, ucscf->shpool, -2);
+                header->name = lua_get_string(L, shpool, -1);
+                header->value = lua_get_string(L, shpool, -2);
 
                 lua_pop(L, 2);
             }
 
-            ucscf->data->request_headers_count = headers->nelts;
-            ucscf->data->request_headers = ngx_slab_calloc_locked(ucscf->shpool,
-                                                                  ucscf->data->request_headers_count * sizeof(ngx_pair_t));
-            if (ucscf->data->request_headers == NULL) {
+            sh->request_headers_count = headers->nelts;
+            sh->request_headers = ngx_slab_calloc_locked(shpool,
+                sh->request_headers_count * sizeof(ngx_pair_t));
+
+            if (sh->request_headers == NULL) {
                 ngx_array_destroy(headers);
-                error = "Memory allocation error";
+                error = "no memory";
                 goto error;
             }
 
             header = headers->elts;
             for (i = 0; i < headers->nelts; ++i) {
-                ucscf->data->request_headers[i].name = header[i].name;
-                ucscf->data->request_headers[i].value = header[i].value;
+                sh->request_headers[i].name = header[i].name;
+                sh->request_headers[i].value = header[i].value;
             }
 
             ngx_array_destroy(headers);
@@ -946,7 +983,7 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
 
         if (lua_istable(L, 4)) {
             lua_getfield(L, 4, "body");
-            ucscf->data->response_body = lua_get_string(L, ucscf->shpool, -1);
+            sh->response_body = lua_get_string(L, shpool, -1);
             lua_pop(L, 1);
 
             lua_getfield(L, 4, "codes");
@@ -958,7 +995,7 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
                 codes = ngx_array_create(r->pool, 100, sizeof(ngx_uint_t));
                 if (codes == NULL)
                 {
-                    error = "Memory allocation error";
+                    error = "no memory";
                     goto error;
                 }
 
@@ -967,7 +1004,7 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
                     code = ngx_array_push(codes);
                     if (code == NULL)
                     {
-                        error = "Memory allocation error";
+                        error = "no memory";
                         ngx_array_destroy(codes);
                         goto error;
                     }
@@ -978,18 +1015,19 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
                     lua_pop(L, 2);
                 }
 
-                ucscf->data->response_codes_count = codes->nelts;
-                ucscf->data->response_codes = ngx_slab_calloc_locked(ucscf->shpool,
-                                                                     ucscf->data->response_codes_count * sizeof(ngx_uint_t));
-                if (ucscf->data->response_codes == NULL) {
+                sh->response_codes_count = codes->nelts;
+                sh->response_codes = ngx_slab_calloc_locked(shpool,
+                    sh->response_codes_count * sizeof(ngx_uint_t));
+
+                if (sh->response_codes == NULL) {
                     ngx_array_destroy(codes);
-                    error = "Memory allocation error";
+                    error = "no memory";
                     goto error;
                 }
 
                 code = codes->elts;
                 for (i = 0; i < codes->nelts; ++i) {
-                    ucscf->data->response_codes[i] = code[i];
+                    sh->response_codes[i] = code[i];
                 }
 
                 ngx_array_destroy(codes);
@@ -1005,7 +1043,7 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
 
     lua_pop(L, 1);
     
-    ngx_shmtx_unlock(&ucscf->shpool->mutex);
+    ngx_shmtx_unlock(&shpool->mutex);
 
     lua_settop(L, top);
 
@@ -1016,7 +1054,7 @@ ngx_http_dynamic_upstream_lua_update_healthcheck(lua_State *L)
 
 error:
 
-    ngx_shmtx_unlock(&ucscf->shpool->mutex);
+    ngx_shmtx_unlock(&shpool->mutex);
 
     lua_settop(L, top);
 

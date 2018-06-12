@@ -27,8 +27,8 @@ ngx_pair_t *
 ngx_shm_copy_pairs(ngx_slab_pool_t *shpool, ngx_pair_t *src, ngx_uint_t count);
 
 
-ngx_uint_t *
-ngx_shm_copy_uint_vec(ngx_slab_pool_t *shpool, ngx_uint_t *src, ngx_uint_t count);
+ngx_int_t *
+ngx_shm_copy_int_vec(ngx_slab_pool_t *shpool, ngx_int_t *src, ngx_uint_t count);
 
 
 void
