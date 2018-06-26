@@ -255,6 +255,9 @@ ngx_http_dynamic_upstream_lua_init_main_conf(ngx_conf_t *cf, void *conf)
         }
     }
 
+    ngx_log_error(NGX_LOG_NOTICE, cf->log, 0,
+                  "http dynamic upstream lua module loaded");
+
     return NGX_CONF_OK;
 }
 
