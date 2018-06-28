@@ -254,6 +254,17 @@ ngx_stream_dynamic_upstream_get_peer(ngx_stream_upstream_rr_peers_t *primary,
 
 
 static ngx_int_t
+ngx_have_upstream(ngx_stream_session_t *s)
+{
+    return s->upstream &&
+           s->upstream->upstream &&
+           s->upstream->upstream->srv_conf &&
+           s->upstream->state &&
+           s->upstream->state->peer;
+}
+
+
+static ngx_int_t
 ngx_stream_dynamic_upstream_write_filter(ngx_stream_session_t *s,
     ngx_chain_t *in, ngx_uint_t from_upstream)
 {
@@ -262,26 +273,25 @@ ngx_stream_dynamic_upstream_write_filter(ngx_stream_session_t *s,
     ngx_stream_upstream_rr_peer_t              *curr;
     ngx_stream_upstream_rr_peers_t             *peers = NULL;
 
-    if (s->upstream == NULL ||
-        s->upstream->upstream == NULL ||
-        s->upstream->state == NULL ||
-        s->upstream->state->peer == NULL) {
+    if (!ngx_have_upstream(s)) {
         goto skip;
     }
 
     uscf = s->upstream->upstream;
-    if (uscf->srv_conf == NULL) {
-        goto skip;
-    }
-
     peers = uscf->peer.data;
 
     ngx_http_upstream_rr_peers_rlock(peers);
 
-    curr = ngx_stream_dynamic_upstream_get_peer(peers, s->upstream->state->peer);
+    curr = ngx_stream_get_module_ctx(s, ngx_stream_dynamic_upstream_lua_module);
 
     if (curr == NULL) {
-        goto skip;
+        curr = ngx_stream_dynamic_upstream_get_peer(peers,
+                                                    s->upstream->state->peer);
+        if (curr) {
+            ngx_stream_set_ctx(s, curr, ngx_stream_dynamic_upstream_lua_module);
+        } else {
+            goto skip;
+        }
     }
 
     ucscf = ngx_stream_conf_upstream_srv_conf(uscf,
