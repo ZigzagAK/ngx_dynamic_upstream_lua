@@ -1,5 +1,5 @@
 local _M = {
-  _VERSION = "1.5.2"
+  _VERSION = "1.7.0"
 }
 
 local cjson = require "cjson"
@@ -124,7 +124,7 @@ local function check_tcp(ctx, peer)
   local sock
   local ok, err
 
-  ctx:debug("checking peer ", peer.name, " with tcp")
+  ctx:debug("checking upstream: ", peer.upstream.name, " peer ", peer.name, " with tcp")
 
   sock, err = ngx.socket.tcp()
   if not sock then
@@ -135,14 +135,16 @@ local function check_tcp(ctx, peer)
   sock:settimeout(peer.upstream.healthcheck.timeout)
 
   if peer.host then
-    ok, err = sock:connect(peer.host, peer.port)
+    ok, err = sock:connect(peer.host, peer.port, {
+      pool = "tcp:" .. peer.host .. ":" .. peer.port
+    })
   else
     ok, err = sock:connect(peer.name)
   end
 
   if not ok then
     if not peer.down then
-      ctx:errlog("failed to connect to ", peer.name, ": ", err)
+      ctx:warn("checking upstream: ", peer.upstream.name, " peer ", peer.name, " : can't connect, ", err)
     end
   else
     if peer.upstream.healthcheck.command then
@@ -169,7 +171,7 @@ local function check_tcp(ctx, peer)
       if err then
         ok = nil
         if not peer.down then
-          ctx:errlog("failed to check ", peer.name, ": ", err)
+          ctx:warn("checking upstream: ", peer.upstream.name, " peer ", peer.name, " : ", err)
         end
       end
     end
@@ -190,36 +192,37 @@ local function check_peer(ctx, peer)
     return
   end
 
-  ctx:debug("checking upstream: ", peer.upstream.name, " peer: ", peer.name, " with http")
+  ctx:debug("checking upstream: ", peer.upstream.name, " peer ", peer.name, " with http")
 
   local httpc = http.new()
 
   httpc:set_timeout(peer.upstream.healthcheck.timeout)
 
-  local ok, err = httpc:connect(peer.host, peer.port or 80)
+  local ok, err = httpc:connect(peer.host, peer.port or 80, {
+    pool = "http:" .. peer.host .. ":" .. (peer.port or 80)
+  })
   if not ok then
-    ctx:warn("checking upstream: ", peer.upstream.name, " peer ", peer.name, " : ", err)
+    ctx:warn("checking upstream: ", peer.upstream.name, " peer ", peer.name, " : can't connect, ", err)
     peer_fail(ctx, peer)
     return
   end
 
   peer.upstream.healthcheck.command.path = peer.upstream.healthcheck.command.uri
+  peer.upstream.healthcheck.command.headers = peer.upstream.healthcheck.command.headers or {}
+
+  peer.upstream.healthcheck.command.headers["Connection"] =
+    peer.upstream.healthcheck.keepalive_requests > httpc:get_reused_times() + 1 and "keep-alive" or "close"
 
   local response, err = httpc:request(peer.upstream.healthcheck.command)
 
   if not response then
     ctx:warn("checking upstream: ", peer.upstream.name, " peer ", peer.name, " : ", err)
     peer_fail(ctx, peer)
-    return
-  end
-
-  if not peer.upstream.healthcheck.command.expected then
     httpc:close()
-    peer_ok(ctx, peer)
     return
   end
 
-  local check_status = function(valid_statuses, status)
+  local function check_status(valid_statuses, status)
     if not valid_statuses then
       return true
     end
@@ -234,31 +237,44 @@ local function check_peer(ctx, peer)
     return false
   end
 
-  response.body, err = response:read_body()
-
-  httpc:close()
-
-  if err then
-    ctx:warn("checking upstream: ", peer.upstream.name, " peer ", peer.name, " : ", err)
-    peer_fail(ctx, peer)
-    return
-  end
-
-  ctx:debug("checking upstream: ", peer.upstream.name,
-            " peer ", peer.name, " : http status=", response.status, " body=[", response.body, "]")
-
-  if not check_status(peer.upstream.healthcheck.command.expected.codes, response.status) then
-    peer_fail(ctx, peer)
-    return
-  end
-
-  if peer.upstream.healthcheck.command.expected.body then
-    if not ngx.re.match(response.body, peer.upstream.healthcheck.command.expected.body) then
-      ctx:debug("checking upstream: ", peer.upstream.name, " peer ", peer.name,
-                " : body=[", response.body, "] is not match the re=", peer.upstream.healthcheck.command.expected.body)
+  if peer.upstream.healthcheck.command.expected then
+    response.body, err = response:read_body()
+  
+    if err then
+      ctx:warn("checking upstream: ", peer.upstream.name, " peer ", peer.name, " : ", err)
       peer_fail(ctx, peer)
+      httpc:close()
       return
     end
+  
+    ctx:debug("checking upstream: ", peer.upstream.name,
+              " peer ", peer.name, " http status=", response.status, " body=[", response.body, "]")
+  
+    if not check_status(peer.upstream.healthcheck.command.expected.codes, response.status) then
+      peer_fail(ctx, peer)
+      httpc:close()
+      return
+    end
+  
+    if peer.upstream.healthcheck.command.expected.body then
+      if not ngx.re.match(response.body, peer.upstream.healthcheck.command.expected.body) then
+        ctx:debug("checking upstream: ", peer.upstream.name, " peer ", peer.name,
+                  " : body=[", response.body, "] is not match the re=", peer.upstream.healthcheck.command.expected.body)
+        peer_fail(ctx, peer)
+        httpc:close()
+        return
+      end
+    end
+  end
+
+  ctx:debug("checking upstream: ", peer.upstream.name, " peer ", peer.name, " requests=", httpc:get_reused_times() + 1)
+
+  if peer.upstream.healthcheck.keepalive_requests > httpc:get_reused_times() + 1 then
+    ctx:debug("checking upstream: ", peer.upstream.name, " peer ", peer.name, " set keepalive")
+    httpc:set_keepalive(peer.upstream.healthcheck.interval * 10000, 1)
+  else
+    ctx:debug("checking upstream: ", peer.upstream.name, " peer ", peer.name, " close")
+    httpc:close()
   end
 
   peer_ok(ctx, peer)
@@ -347,6 +363,8 @@ local function do_check(ctx)
         if not peer.upstream.healthcheck.interval then
           peer.upstream.healthcheck.interval = ctx.healthcheck.interval
         end
+
+        peer.upstream.healthcheck.keepalive_requests = ctx.healthcheck.keepalive_requests or 1
 
         if ctx.dict:get_dict_key("last", peer, 0) + peer.upstream.healthcheck.interval <= now then
           table.insert(all_peers, peer)
@@ -447,7 +465,8 @@ local function initialize(opts)
     healthcheck = opts.healthcheck or {
       fall = 1,
       rise = 1,
-      timeout = 1000
+      timeout = 1000,
+      keepalive_requests = 1
     },
 
     check_all = opts.check_all,
