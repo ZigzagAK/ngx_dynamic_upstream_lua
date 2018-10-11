@@ -1,12 +1,11 @@
 #include <ngx_core.h>
-#include <ngx_http.h>
 #include <ngx_stream.h>
+#include <ngx_http.h>
+
 #include <lauxlib.h>
 #include "ngx_http_lua_api.h"
 
 
-#include "ngx_dynamic_shm.h"
-#include "ngx_dynamic_upstream_stream_lua.h"
 #include "ngx_dynamic_upstream_module.h"
 
 
@@ -15,8 +14,6 @@ extern ngx_module_t ngx_stream_dynamic_upstream_lua_module;
 
 static int
 ngx_stream_dynamic_upstream_lua_get_upstreams(lua_State *L);
-static int
-ngx_stream_dynamic_upstream_lua_get_healthcheck(lua_State *L);
 static int
 ngx_stream_dynamic_upstream_lua_get_peers(lua_State *L);
 static int
@@ -35,8 +32,6 @@ static int
 ngx_stream_dynamic_upstream_lua_remove_peer(lua_State *L);
 static int
 ngx_stream_dynamic_upstream_lua_update_peer(lua_State *L);
-static int
-ngx_stream_dynamic_upstream_lua_update_healthcheck(lua_State *L);
 
 
 static ngx_stream_upstream_main_conf_t *
@@ -46,13 +41,10 @@ ngx_stream_lua_upstream_get_upstream_main_conf();
 int
 ngx_stream_dynamic_upstream_lua_create_module(lua_State *L)
 {
-    lua_createtable(L, 0, 12);
+    lua_newtable(L);
 
     lua_pushcfunction(L, ngx_stream_dynamic_upstream_lua_get_upstreams);
     lua_setfield(L, -2, "get_upstreams");
-
-    lua_pushcfunction(L, ngx_stream_dynamic_upstream_lua_get_healthcheck);
-    lua_setfield(L, -2, "get_healthcheck");
 
     lua_pushcfunction(L, ngx_stream_dynamic_upstream_lua_get_peers);
     lua_setfield(L, -2, "get_peers");
@@ -80,9 +72,6 @@ ngx_stream_dynamic_upstream_lua_create_module(lua_State *L)
 
     lua_pushcfunction(L, ngx_stream_dynamic_upstream_lua_update_peer);
     lua_setfield(L, -2, "update_peer");
-
-    lua_pushcfunction(L, ngx_stream_dynamic_upstream_lua_update_healthcheck);
-    lua_setfield(L, -2, "update_healthcheck");
 
     return 1;
 }
@@ -141,7 +130,10 @@ ngx_dynamic_upstream_lua_create_response(ngx_stream_upstream_rr_peers_t *primary
     lua_newtable(L);
 
     for (peers = primary; peers; peers = peers->next) {
-        if ( (flags & PRIMARY && peers == primary) || (flags & BACKUP && peers == backup) ) {
+
+        if ( (flags & PRIMARY && peers == primary)
+              || (flags & BACKUP && peers == backup) ) {
+
             for (peer = peers->peer; peer; peer = peer->next, ++i) {
                 lua_newtable(L);
 
@@ -285,131 +277,6 @@ ngx_stream_dynamic_upstream_lua_get_upstreams(lua_State *L)
         uscf = uscfp[i];
         if (uscf->srv_conf != NULL) {
             lua_pushlstring(L, (char *) uscf->host.data, uscf->host.len);
-            lua_rawseti(L, -2, j++);
-        }
-    }
-
-    return 2;
-}
-
-
-extern ngx_str_t zone_stream_prefix;
-
-
-static ngx_stream_dynamic_upstream_lua_srv_conf_t *
-ngx_stream_get_dynamic_upstream_lua_srv_conf(ngx_stream_upstream_srv_conf_t *uscf)
-{
-    ngx_stream_dynamic_upstream_lua_srv_conf_t *ucscf;
-
-    ucscf = ngx_stream_conf_upstream_srv_conf(uscf,
-        ngx_stream_dynamic_upstream_lua_module);
-
-    if (ucscf->shm_zone == NULL) {
-        ucscf->shm_zone = ngx_shared_memory_find(ngx_cycle,
-            zone_stream_prefix,
-            ucscf->conf->upstream,
-            &ngx_stream_dynamic_upstream_lua_module);
-
-        if (ucscf->shm_zone == NULL) {
-            return NULL;
-        }
-    }
-
-    ucscf->conf->upstream = uscf->host;
-    ucscf->data = ucscf->shm_zone->data;
-    ucscf->data->upstream = uscf->host;
-    ucscf->shpool = (ngx_slab_pool_t *) ucscf->shm_zone->shm.addr;
-
-    return ucscf;
-}
-
-
-static void
-ngx_stream_dynamic_upstream_lua_push_healthcheck(lua_State *L,
-    ngx_stream_upstream_srv_conf_t *uscf)
-{
-    ngx_stream_dynamic_upstream_lua_srv_conf_t *ucscf;
-
-    ucscf = ngx_stream_get_dynamic_upstream_lua_srv_conf(uscf);
-
-    if (ucscf == NULL || ucscf->data == NULL) {
-        lua_pushnil(L);
-        return;
-    }
-
-    ngx_shmtx_lock(&ucscf->shpool->mutex);
-
-    lua_newtable(L);
-
-    lua_pushinteger(L, ucscf->data->fall);
-    lua_setfield(L, -2, "fall");
-
-    lua_pushinteger(L, ucscf->data->rise);
-    lua_setfield(L, -2, "rise");
-
-    lua_pushinteger(L, ucscf->data->timeout);
-    lua_setfield(L, -2, "timeout");
-
-    lua_pushinteger(L, ucscf->data->interval);
-    lua_setfield(L, -2, "interval");
-
-    if (ucscf->data->request_body.len != 0) {
-        lua_newtable(L);
-
-        lua_pushlstring(L, (char *) ucscf->data->request_body.data,
-                                    ucscf->data->request_body.len);
-        lua_setfield(L, -2, "body");
-
-        if (ucscf->data->response_body.len != 0) {
-            lua_newtable(L);
-
-            lua_pushlstring(L, (char *) ucscf->data->response_body.data,
-                                        ucscf->data->response_body.len);
-            lua_setfield(L, -2, "body");
-
-            lua_setfield(L, -2, "expected");
-        }
-
-        lua_setfield(L, -2, "command");
-    }
-
-    ngx_shmtx_unlock(&ucscf->shpool->mutex);
-}
-
-
-static int
-ngx_stream_dynamic_upstream_lua_get_healthcheck(lua_State *L)
-{
-    ngx_uint_t                        i, j;
-    ngx_stream_upstream_srv_conf_t  **uscfp, *uscf;
-    ngx_stream_upstream_main_conf_t  *umcf;
-
-    if (lua_gettop(L) != 0) {
-        return ngx_stream_dynamic_upstream_lua_error(L, "no argument expected");
-    }
-
-    umcf = ngx_stream_lua_upstream_get_upstream_main_conf(L);
-    uscfp = umcf->upstreams.elts;
-
-    lua_pushboolean(L, 1);
-
-    lua_newtable(L);
-
-    umcf  = ngx_stream_lua_upstream_get_upstream_main_conf(L);
-    uscfp = umcf->upstreams.elts;
-
-    for (i = 0, j = 1; i < umcf->upstreams.nelts; i++) {
-        uscf = uscfp[i];
-
-        if (uscf->srv_conf != NULL) {
-            lua_newtable(L);
-
-            lua_pushlstring(L, (char *) uscf->host.data, uscf->host.len);
-            lua_setfield(L, -2, "name");
-
-            ngx_stream_dynamic_upstream_lua_push_healthcheck(L, uscf);
-            lua_setfield(L, -2, "healthcheck");
-
             lua_rawseti(L, -2, j++);
         }
     }
@@ -622,137 +489,4 @@ ngx_stream_dynamic_upstream_lua_update_peer(lua_State *L)
     ngx_stream_dynamic_upstream_lua_update_peer_parse_params(L, &op);
 
     return ngx_stream_dynamic_upstream_lua_op(L, &op, 0);
-}
-
-
-static ngx_str_t
-lua_get_string(lua_State *L, ngx_slab_pool_t *shpool, int index)
-{
-    ngx_str_t r = { .data = NULL, .len = 0 };
-    const char *s;
-    s = lua_tostring(L, index);
-    if (s != NULL) {
-        r.len = strlen(s);
-        r.data = ngx_slab_calloc_locked(shpool, r.len);
-        if (r.data != NULL) {
-            ngx_memcpy(r.data, s, r.len);
-        } else {
-            r.len = 0;
-        }
-    }
-    return r;
-}
-
-
-static int
-ngx_stream_dynamic_upstream_lua_update_healthcheck(lua_State *L)
-{
-    ngx_stream_upstream_srv_conf_t             *uscf;
-    ngx_stream_dynamic_upstream_lua_srv_conf_t *ucscf = NULL;
-    ngx_dynamic_upstream_op_t                   op;
-    int                                         top = lua_gettop(L);
-    const char                                 *error = "unknown error";
-    ngx_stream_upstream_check_opts_t           *sh;
-    ngx_slab_pool_t                            *shpool;
-
-    if (lua_gettop(L) != 2 && !lua_istable(L, 2)) {
-        return ngx_stream_dynamic_upstream_lua_error(L,
-            "exactly 2 arguments expected");
-    }
-
-    op.upstream.data = (u_char *) luaL_checklstring(L, 1, &op.upstream.len);
-
-    uscf = ngx_dynamic_upstream_get(L, &op);
-    if (uscf != NULL) {
-        ucscf = ngx_stream_get_dynamic_upstream_lua_srv_conf(uscf);
-    }
-
-    if (ucscf == NULL) {
-        return ngx_stream_dynamic_upstream_lua_error(L, "upstream not found");
-    }
-
-    shpool = ucscf->shpool;
-
-    ngx_shmtx_lock(&shpool->mutex);
-
-    if (ucscf->data == NULL) {
-        ucscf->data = ngx_slab_calloc(shpool, sizeof(ngx_stream_upstream_check_opts_t));
-        if (ucscf->data == NULL) {
-            error = "no memory";
-            goto error;
-        }
-    }
-
-    sh = ucscf->data;
-
-    ngx_safe_slab_free(shpool, (void **) &sh->request_body.data);
-    ngx_safe_slab_free(shpool, (void **) &sh->response_body.data);
-
-    sh->request_body.len = 0;
-    sh->response_body.len = 0;
-
-    lua_getfield(L, 2, "fall");
-    lua_getfield(L, 2, "rise");
-    lua_getfield(L, 2, "timeout");
-    lua_getfield(L, 2, "interval");
-
-    sh->fall = lua_tointeger(L, -4);
-    sh->rise = lua_tointeger(L, -3);
-    sh->timeout = lua_tointeger(L, -2);
-    sh->interval = lua_tointeger(L, -1);
-
-    lua_pop(L, 4);
-
-    if (sh->fall == 0) {
-        sh->fall = 1;
-    }
-
-    if (sh->rise == 0) {
-        sh->rise = 1;
-    }
-
-    if (sh->timeout == 0) {
-        sh->timeout = 1000;
-    }
-
-    if (sh->interval == 0) {
-        sh->interval = 10;
-    }
-
-    lua_getfield(L, 2, "command");
-
-    if (lua_istable(L, 3)) {
-        lua_getfield(L, 3, "body");
-
-        sh->request_body = lua_get_string(L, shpool, -1);
-
-        lua_pop(L, 1);
-
-        lua_getfield(L, 3, "expected");
-
-        if (lua_istable(L, 4)) {
-            lua_getfield(L, 4, "body");
-            sh->response_body = lua_get_string(L, shpool, -1);
-            lua_pop(L, 1);
-        }
-
-        lua_pop(L, 1);
-    }
-
-    lua_pop(L, 1);
-
-    ngx_shmtx_unlock(&shpool->mutex);
-
-    lua_settop(L, top);
-
-    lua_pushboolean(L, 1);
-    lua_pushnil(L);
-
-    return 2;
-
-error:
-
-    ngx_shmtx_unlock(&shpool->mutex);
-
-    return ngx_stream_dynamic_upstream_lua_error(L, error);
 }

@@ -3,8 +3,7 @@ ngx_addon_name="ngx_http_dynamic_upstream_lua_module ngx_stream_dynamic_upstream
 HTTP_LUA_UPSTREAM_SRCS="$ngx_addon_dir/src/ngx_dynamic_upstream_lua.c \
                         $ngx_addon_dir/src/ngx_dynamic_upstream_lua_module.c \
                         $ngx_addon_dir/src/ngx_dynamic_upstream_stream_lua.c \
-                        $ngx_addon_dir/src/ngx_dynamic_upstream_stream_lua_module.c \
-                        $ngx_addon_dir/src/ngx_dynamic_shm.c"
+                        $ngx_addon_dir/src/ngx_dynamic_upstream_stream_lua_module.c"
 
 stream_lua_nginx_module_incs="$(echo $CORE_INCS | awk '{
     match($0, /([^ ]*\/stream-lua-nginx-module\/src)/, arr)
