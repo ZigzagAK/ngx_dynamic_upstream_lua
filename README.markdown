@@ -5,6 +5,9 @@ dynamic-upstream-module-lua - Lua bindings for dynamic-upstream-module
 
 This module supports http and stream upstream types.
 
+Healthcheck directives and lua api removed. Use [ngx_dynamic_healthcheck](https://github.com/ZigzagAK/ngx_dynamic_healthcheck) module.
+Upstreams without [zone](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#zone) directive are unsupported.
+
 Build status
 ======
 [![Build Status](https://travis-ci.org/ZigzagAK/ngx_dynamic_upstream_lua.svg)](https://travis-ci.org/ZigzagAK/ngx_dynamic_upstream_lua)
@@ -30,7 +33,6 @@ Table of Contents
 * [Packages](#packages)
 * [Methods](#methods)
     * [get_upstreams](#get_upstreams)
-    * [get_healthcheck](#get_healthcheck)
     * [get_peers](#get_peers)
     * [get_primary_peers](#get_primary_peers)
     * [get_backup_peers](#get_backup_peers)
@@ -78,56 +80,6 @@ Archive will be placed in the `install` folder after successful build.
 
 Configuration directives
 ========================
-
-To use healthcheck parameters you need [nginx-resty-auto-healthcheck-config](https://github.com/ZigzagAK/nginx-resty-auto-healthcheck-config)
-
-check
------
-* **syntax**: `check fall=2 rise=2 timeout=1000 interval=10 type=http|tcp`
-* **default**: `none`
-* **context**: `upstream`
-
-Configure healthcheck base parameters.
-
-check_request_uri
------------------
-* **syntax**: `check_request_uri GET|POST /ping`
-* **default**: `none`
-* **context**: `upstream`
-
-Configure http request for healthcheck.
-
-check_request_headers
----------------------
-* **syntax**: `check_request_headers a=1 b=2`
-* **default**: `none`
-* **context**: `upstream`
-
-Configure http request headers for healthcheck.
-
-check_request_body
-------------------
-* **syntax**: `check_request_body hello`
-* **default**: `none`
-* **context**: `upstream`
-
-Configure http request body for healthcheck.
-
-check_response_codes
---------------------
-* **syntax**: `check_response_codes 200 201 202`
-* **default**: `none`
-* **context**: `upstream`
-
-Configure http response codes for healthcheck.
-
-check_response_body
--------------------
-* **syntax**: `check_response_body .*`
-* **default**: `none`
-* **context**: `upstream`
-
-Configure regular expression for http response body.
 
 disconnect_backup_if_primary_up
 -------------------------------
@@ -313,17 +265,6 @@ get_upstreams
 **context:** *&#42;_by_lua&#42;*
 
 Get table of upstreams.
-
-Returns true and lua table on success, or false and a string describing an error otherwise.
-
-
-get_healthcheck
----------------
-**syntax:** `ok, healthcheck, error = dynamic_upstream.get_healthcheck()`
-
-**context:** *&#42;_by_lua&#42;*
-
-Get healthcheck parameters.
 
 Returns true and lua table on success, or false and a string describing an error otherwise.
 
