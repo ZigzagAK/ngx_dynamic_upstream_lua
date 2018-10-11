@@ -3,6 +3,8 @@
 #include <ngx_http.h>
 
 #include <lauxlib.h>
+
+#include "ngx_stream_lua_request.h"
 #include "ngx_http_lua_api.h"
 
 
