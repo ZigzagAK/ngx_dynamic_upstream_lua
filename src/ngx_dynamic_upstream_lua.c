@@ -164,6 +164,10 @@ ngx_dynamic_upstream_lua_create_response(ngx_http_upstream_rr_peers_t *primary,
             for (peer = peers->peer; peer; peer = peer->next, ++i) {
                 lua_newtable(L);
 
+                lua_pushlstring(L, (char *) peer->server.data,
+                                            peer->server.len);
+                lua_setfield(L, -2, "server");
+
                 lua_pushlstring(L, (char *) peer->name.data,
                                             peer->name.len);
                 lua_setfield(L, -2, "name");
@@ -217,6 +221,7 @@ ngx_http_dynamic_upstream_lua_op_defaults(lua_State *L,
     op->fail_timeout = 10;
     op->verbose      = 0;
     op->backup       = 0;
+    op->op_param     = NGX_DYNAMIC_UPSTEAM_OP_PARAM_RESOLVE;
 
     op->upstream.data = (u_char *) luaL_checklstring(L, 1, &op->upstream.len);
 }
@@ -245,20 +250,13 @@ ngx_http_dynamic_upstream_lua_op(lua_State *L, ngx_dynamic_upstream_op_t *op,
         return ngx_http_dynamic_upstream_lua_error(L, "upstream not found");
     }
 
-    if (op->op & (NGX_DYNAMIC_UPSTEAM_OP_ADD | NGX_DYNAMIC_UPSTEAM_OP_REMOVE)) {
-        if (uscf->shm_zone == NULL) {
-            return ngx_http_dynamic_upstream_lua_error(L,
-                "shared zone segment is not defined in upstream");
-        }
-    }
-
     if (op->op != NGX_DYNAMIC_UPSTEAM_OP_LIST) {
         if (flags & LOCK) {
             rc = ngx_dynamic_upstream_op(ngx_http_lua_get_request(L)->
                 connection->log, op, uscf);
-            if (rc != NGX_OK) {
+            if (rc != NGX_OK && rc != NGX_AGAIN) {
                 return ngx_http_dynamic_upstream_lua_error(L,
-                    "internal error");
+                    op->err);
             }
         } else {
             return ngx_http_dynamic_upstream_lua_error(L,

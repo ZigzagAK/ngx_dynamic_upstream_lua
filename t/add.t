@@ -19,7 +19,7 @@ __DATA__
     location /test {
         content_by_lua_block {
             local upstream = require "ngx.dynamic_upstream"
-            local ok, err = upstream.add_primary_peer(ngx.var.arg_upstream, ngx.var.arg_peer)
+            local ok, _, err = upstream.add_primary_peer(ngx.var.arg_upstream, ngx.var.arg_peer)
             if not ok then
                 ngx.say(err)
                 ngx.exit(200)
@@ -42,7 +42,45 @@ __DATA__
 127.0.0.1:6666
 
 
-=== TEST 2: add backup peer
+=== TEST 2: add primary server
+--- http_config
+    upstream backends {
+        zone shm-backends 128k;
+        dns_update 0s;
+        server 127.0.0.1:6001;
+    }
+--- config
+    location /test {
+        content_by_lua_block {
+            local upstream = require "ngx.dynamic_upstream"
+            local ok, _, err = upstream.add_primary_peer(ngx.var.arg_upstream, ngx.var.arg_peer)
+            if not ok then
+                ngx.say(err)
+                ngx.exit(200)
+            end
+            ngx.sleep(1.2)
+            local ok, peers, err = upstream.get_primary_peers(ngx.var.arg_upstream)
+            if not ok then
+                ngx.say(err)
+                ngx.exit(200)
+            end
+            for _, peer in pairs(peers)
+            do
+               ngx.say(peer.server)
+               ngx.say(peer.name)
+            end
+        }
+    }
+--- request
+    GET /test?upstream=backends&peer=localhost4:6666
+--- response_body
+127.0.0.1:6001
+127.0.0.1:6001
+localhost4:6666
+127.0.0.1:6666
+
+
+=== TEST 3: add backup peer
 --- http_config
     upstream backends {
         zone shm-backends 128k;
@@ -52,7 +90,7 @@ __DATA__
     location /test {
         content_by_lua_block {
             local upstream = require "ngx.dynamic_upstream"
-            local ok, err = upstream.add_backup_peer(ngx.var.arg_upstream, ngx.var.arg_peer)
+            local ok, _, err = upstream.add_backup_peer(ngx.var.arg_upstream, ngx.var.arg_peer)
             if not ok then
                 ngx.say(err)
                 ngx.exit(200)
@@ -84,7 +122,55 @@ __DATA__
 127.0.0.1:6666 backup
 
 
-=== TEST 3: add stream primary peer
+=== TEST 4: add backup server
+--- http_config
+    upstream backends {
+        zone shm-backends 128k;
+        dns_update 0s;
+        server 127.0.0.1:6001;
+    }
+--- config
+    location /test {
+        content_by_lua_block {
+            local upstream = require "ngx.dynamic_upstream"
+            local ok, _, err = upstream.add_backup_peer(ngx.var.arg_upstream, ngx.var.arg_peer)
+            if not ok then
+                ngx.say(err)
+                ngx.exit(200)
+            end
+            ngx.sleep(1.2)
+            local ok, peers, err = upstream.get_primary_peers(ngx.var.arg_upstream)
+            if not ok then
+                ngx.say(err)
+                ngx.exit(200)
+            end
+            for _, peer in pairs(peers)
+            do
+               ngx.say(peer.server)
+               ngx.say(peer.name)
+            end
+            local ok, peers, err = upstream.get_backup_peers(ngx.var.arg_upstream)
+            if not ok then
+                ngx.say(err)
+                ngx.exit(200)
+            end
+            for _, peer in pairs(peers)
+            do
+               ngx.say(peer.server .. " backup")
+               ngx.say(peer.name .. " backup")
+            end
+        }
+    }
+--- request
+    GET /test?upstream=backends&peer=localhost4:6666
+--- response_body
+127.0.0.1:6001
+127.0.0.1:6001
+localhost4:6666 backup
+127.0.0.1:6666 backup
+
+
+=== TEST 5: add stream primary peer
 --- stream_config
     upstream backends {
         zone shm-backends 128k;
@@ -96,7 +182,7 @@ __DATA__
     location /test {
         content_by_lua_block {
             local upstream = require "ngx.dynamic_upstream.stream"
-            local ok, err = upstream.add_primary_peer(ngx.var.arg_upstream, ngx.var.arg_peer)
+            local ok, _, err = upstream.add_primary_peer(ngx.var.arg_upstream, ngx.var.arg_peer)
             if not ok then
                 ngx.say(err)
                 ngx.exit(200)
@@ -119,7 +205,47 @@ __DATA__
 127.0.0.1:6666
 
 
-=== TEST 4: add stream backup peer
+=== TEST 6: add stream primary server
+--- stream_config
+    upstream backends {
+        zone shm-backends 128k;
+        dns_update 0s;
+        server 127.0.0.1:6001;
+    }
+--- stream_server_config
+    proxy_pass backends;
+--- config
+    location /test {
+        content_by_lua_block {
+            local upstream = require "ngx.dynamic_upstream.stream"
+            local ok, _, err = upstream.add_primary_peer(ngx.var.arg_upstream, ngx.var.arg_peer)
+            if not ok then
+                ngx.say(err)
+                ngx.exit(200)
+            end
+            ngx.sleep(1.2)
+            local ok, peers, err = upstream.get_primary_peers(ngx.var.arg_upstream)
+            if not ok then
+                ngx.say(err)
+                ngx.exit(200)
+            end
+            for _, peer in pairs(peers)
+            do
+               ngx.say(peer.server)
+               ngx.say(peer.name)
+            end
+        }
+    }
+--- request
+    GET /test?upstream=backends&peer=localhost4:6666
+--- response_body
+127.0.0.1:6001
+127.0.0.1:6001
+localhost4:6666
+127.0.0.1:6666
+
+
+=== TEST 7: add stream backup peer
 --- stream_config
     upstream backends {
         zone shm-backends 128k;
@@ -131,7 +257,7 @@ __DATA__
     location /test {
         content_by_lua_block {
             local upstream = require "ngx.dynamic_upstream.stream"
-            local ok, err = upstream.add_backup_peer(ngx.var.arg_upstream, ngx.var.arg_peer)
+            local ok, _, err = upstream.add_backup_peer(ngx.var.arg_upstream, ngx.var.arg_peer)
             if not ok then
                 ngx.say(err)
                 ngx.exit(200)
@@ -162,4 +288,53 @@ __DATA__
 127.0.0.1:6001
 127.0.0.1:6666 backup
 
+
+=== TEST 8: add stream backup server
+--- stream_config
+    upstream backends {
+        zone shm-backends 128k;
+        dns_update 0s;
+        server 127.0.0.1:6001;
+    }
+--- stream_server_config
+    proxy_pass backends;
+--- config
+    location /test {
+        content_by_lua_block {
+            local upstream = require "ngx.dynamic_upstream.stream"
+            local ok, _, err = upstream.add_backup_peer(ngx.var.arg_upstream, ngx.var.arg_peer)
+            if not ok then
+                ngx.say(err)
+                ngx.exit(200)
+            end
+            ngx.sleep(1.2)
+            local ok, peers, err = upstream.get_primary_peers(ngx.var.arg_upstream)
+            if not ok then
+                ngx.say(err)
+                ngx.exit(200)
+            end
+            for _, peer in pairs(peers)
+            do
+               ngx.say(peer.server)
+               ngx.say(peer.name)
+            end
+            local ok, peers, err = upstream.get_backup_peers(ngx.var.arg_upstream)
+            if not ok then
+                ngx.say(err)
+                ngx.exit(200)
+            end
+            for _, peer in pairs(peers)
+            do
+               ngx.say(peer.server .. " backup")
+               ngx.say(peer.name .. " backup")
+            end
+        }
+    }
+--- request
+    GET /test?upstream=backends&peer=localhost4:6666
+--- response_body
+127.0.0.1:6001
+127.0.0.1:6001
+localhost4:6666 backup
+127.0.0.1:6666 backup
 
