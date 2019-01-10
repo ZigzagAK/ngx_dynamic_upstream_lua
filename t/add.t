@@ -46,7 +46,7 @@ __DATA__
 --- http_config
     upstream backends {
         zone shm-backends 128k;
-        dns_update 0s;
+        dns_update 1s;
         server 127.0.0.1:6001;
     }
 --- config
@@ -58,7 +58,7 @@ __DATA__
                 ngx.say(err)
                 ngx.exit(200)
             end
-            ngx.sleep(1.2)
+            ngx.sleep(2)
             local ok, peers, err = upstream.get_primary_peers(ngx.var.arg_upstream)
             if not ok then
                 ngx.say(err)
@@ -78,6 +78,7 @@ __DATA__
 127.0.0.1:6001
 localhost4:6666
 127.0.0.1:6666
+--- timeout: 3
 
 
 === TEST 3: add backup peer
@@ -126,7 +127,7 @@ localhost4:6666
 --- http_config
     upstream backends {
         zone shm-backends 128k;
-        dns_update 0s;
+        dns_update 1s;
         server 127.0.0.1:6001;
     }
 --- config
@@ -138,7 +139,7 @@ localhost4:6666
                 ngx.say(err)
                 ngx.exit(200)
             end
-            ngx.sleep(1.2)
+            ngx.sleep(2)
             local ok, peers, err = upstream.get_primary_peers(ngx.var.arg_upstream)
             if not ok then
                 ngx.say(err)
@@ -168,6 +169,7 @@ localhost4:6666
 127.0.0.1:6001
 localhost4:6666 backup
 127.0.0.1:6666 backup
+--- timeout: 3
 
 
 === TEST 5: add stream primary peer
@@ -209,7 +211,7 @@ localhost4:6666 backup
 --- stream_config
     upstream backends {
         zone shm-backends 128k;
-        dns_update 0s;
+        dns_update 1s;
         server 127.0.0.1:6001;
     }
 --- stream_server_config
@@ -223,7 +225,7 @@ localhost4:6666 backup
                 ngx.say(err)
                 ngx.exit(200)
             end
-            ngx.sleep(1.2)
+            ngx.sleep(2)
             local ok, peers, err = upstream.get_primary_peers(ngx.var.arg_upstream)
             if not ok then
                 ngx.say(err)
@@ -243,6 +245,7 @@ localhost4:6666 backup
 127.0.0.1:6001
 localhost4:6666
 127.0.0.1:6666
+--- timeout: 3
 
 
 === TEST 7: add stream backup peer
@@ -293,7 +296,7 @@ localhost4:6666
 --- stream_config
     upstream backends {
         zone shm-backends 128k;
-        dns_update 0s;
+        dns_update 1s;
         server 127.0.0.1:6001;
     }
 --- stream_server_config
@@ -307,7 +310,7 @@ localhost4:6666
                 ngx.say(err)
                 ngx.exit(200)
             end
-            ngx.sleep(1.2)
+            ngx.sleep(2)
             local ok, peers, err = upstream.get_primary_peers(ngx.var.arg_upstream)
             if not ok then
                 ngx.say(err)
@@ -337,4 +340,5 @@ localhost4:6666
 127.0.0.1:6001
 localhost4:6666 backup
 127.0.0.1:6666 backup
+--- timeout: 3
 
