@@ -274,9 +274,9 @@ ngx_stream_dynamic_upstream_lua_create_srv_conf(ngx_conf_t *cf)
         return NULL;
     }
 
-    ucscf->disconnect_backup = NGX_CONF_UNSET;
-    ucscf->disconnect_down = NGX_CONF_UNSET;
-    ucscf->disconnect_on_exiting = NGX_CONF_UNSET;
+    ucscf->disconnect_backup = 0;
+    ucscf->disconnect_down = 0;
+    ucscf->disconnect_on_exiting = 0;
 
     return ucscf;
 }
