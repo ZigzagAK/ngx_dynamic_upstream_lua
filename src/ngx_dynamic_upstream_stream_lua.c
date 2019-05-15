@@ -275,6 +275,12 @@ ngx_stream_dynamic_upstream_lua_get_upstreams(lua_State *L)
     }
 
     umcf = ngx_stream_lua_upstream_get_upstream_main_conf();
+    if (umcf == NULL) {
+        lua_pushboolean(L, 1);
+        lua_newtable(L);
+        return 2;
+    }
+
     uscfp = umcf->upstreams.elts;
 
     lua_pushboolean(L, 1);
