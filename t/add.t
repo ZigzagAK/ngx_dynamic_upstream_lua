@@ -38,8 +38,8 @@ __DATA__
 --- request
     GET /test?upstream=backends&peer=127.0.0.1:6666
 --- response_body
-127.0.0.1:6001
 127.0.0.1:6666
+127.0.0.1:6001
 
 
 === TEST 2: add primary server
@@ -73,11 +73,11 @@ __DATA__
     }
 --- request
     GET /test?upstream=backends&peer=localhost4:6666
---- response_body
-127.0.0.1:6001
-127.0.0.1:6001
+--- response_body_like
 localhost4:6666
 127.0.0.1:6666
+127.0.0.1:6001
+127.0.0.1:6001
 --- timeout: 3
 
 
@@ -203,8 +203,8 @@ localhost4:6666 backup
 --- request
     GET /test?upstream=backends&peer=127.0.0.1:6666
 --- response_body
-127.0.0.1:6001
 127.0.0.1:6666
+127.0.0.1:6001
 
 
 === TEST 6: add stream primary server
@@ -241,10 +241,10 @@ localhost4:6666 backup
 --- request
     GET /test?upstream=backends&peer=localhost4:6666
 --- response_body
-127.0.0.1:6001
-127.0.0.1:6001
 localhost4:6666
 127.0.0.1:6666
+127.0.0.1:6001
+127.0.0.1:6001
 --- timeout: 3
 
 
